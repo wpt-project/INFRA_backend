@@ -2,30 +2,36 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
-  lint-typecheck:
+  lint-and-typecheck:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
-          version: 9.15.0
+          version: 10
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: pnpm turbo run lint
+        run: pnpm lint
 
       - name: Typecheck
-        run: pnpm turbo run typecheck
+        run: pnpm typecheck
 
 # NOTE: this workflow enforces "lint + typecheck on every PR" from §5.
 # It does NOT enforce "main always deployable / PR review required" —
