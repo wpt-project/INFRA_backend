@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "WPT",
+    "slug": "wpt-mobile",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "ios": { "supportsTablet": false },
+    "android": {}
+  }
+}
