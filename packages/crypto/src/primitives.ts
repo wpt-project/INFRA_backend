@@ -1,3 +1,4 @@
+import { utf8ToBytes } from "@noble/hashes/utils";
 import { x25519, ed25519 } from "@noble/curves/ed25519";
 import { hkdf } from "@noble/hashes/hkdf";
 import { sha256 } from "@noble/hashes/sha2";
@@ -51,7 +52,8 @@ export function deriveKeys(
   outputLength: number,
   salt?: Uint8Array,
 ): Uint8Array {
-  return hkdf(sha256, inputKeyMaterial, salt, info, outputLength);
+  const infoBytes = utf8ToBytes(info);
+  return hkdf(sha256, inputKeyMaterial, salt, infoBytes, outputLength);
 }
 
 export function aeadEncrypt(

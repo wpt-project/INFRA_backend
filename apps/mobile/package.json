@@ -10,15 +10,18 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@wpt/shared": "workspace:*",
     "@wpt/api-client": "workspace:*",
     "@wpt/crypto": "workspace:*",
+    "@wpt/shared": "workspace:*",
     "expo": "~52.0.0",
     "react": "18.3.1",
     "react-native": "0.76.5"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.67.0",
+    "@typescript-eslint/parser": "^8.67.0",
+    "eslint": "8.57.1",
     "typescript": "^5.6.0"
   }
 }
