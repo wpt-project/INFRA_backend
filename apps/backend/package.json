@@ -11,8 +11,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.3",
     "@wpt/crypto": "workspace:*",
     "@wpt/shared": "workspace:*",
+    "dotenv": "^17.4.2",
     "express": "^4.21.0",
     "socket.io": "^4.8.0"
   },
