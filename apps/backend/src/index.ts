@@ -6,6 +6,14 @@ import { API_VERSION, SOCKET_NAMESPACE } from "@wpt/shared";
 const app = express();
 app.use(express.json());
 
+// Convenience only — lets a bare `localhost:4000` visit in a browser
+// show something meaningful instead of Express's default 404. The real
+// health-check clients (monitoring, Render, etc.) should use is the
+// versioned route below, not this one.
+app.get("/", (_req, res) => {
+  res.json({ status: "ok", service: "@wpt/backend" });
+});
+
 app.get(`/api/${API_VERSION}/health`, (_req, res) => {
   res.json({ ok: true });
 });
