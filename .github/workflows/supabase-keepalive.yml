@@ -8,7 +8,7 @@ on:
 jobs:
   ping:
     name: Ping Supabase
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
       - name: Query a real table to keep the project active
