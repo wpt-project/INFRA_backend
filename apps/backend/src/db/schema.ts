@@ -3,12 +3,15 @@ import {
   pgEnum,
   uuid,
   text,
+  varchar,
   boolean,
   integer,
   timestamp,
   customType,
   primaryKey,
   check,
+  index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -57,8 +60,6 @@ export const reportStatusEnum = pgEnum("report_status", [
   "actioned",
   "dismissed",
 ]);
-
-
 
 // ---- §6.1 users ----
 // phone_number is the plaintext account identifier -- distinct from the
@@ -409,3 +410,163 @@ export const auditLog = pgTable("audit_log", {
     .notNull()
     .defaultNow(),
 });
+
+// ---- §6.8 Supporting Utility Tables ----
+
+// 1. OTP Verifications
+export const otpVerifications = pgTable(
+  "otp_verifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    phoneNumber: varchar("phone_number", { length: 20 }).notNull(),
+    codeHash: text("code_hash").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    phoneNumberIdx: index("otp_verifications_phone_idx").on(table.phoneNumber),
+  })
+);
+
+// 2. User Sessions (Normal User Auth)
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    refreshTokenHash: text("refresh_token_hash").notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index("sessions_user_id_idx").on(table.userId),
+  })
+);
+
+// 3. Dashboard Sessions (ISOLATED Admin Auth Table)
+export const dashboardSessions = pgTable(
+  "dashboard_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    adminId: uuid("admin_id")
+      .notNull()
+      .references(() => dashboardAdmins.id, { onDelete: "cascade" }),
+    refreshTokenHash: text("refresh_token_hash").notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    adminIdIdx: index("dashboard_sessions_admin_id_idx").on(table.adminId),
+  })
+);
+
+// 4. Push Tokens
+export const pushTokens = pgTable(
+  "push_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    token: text("token").notNull(),
+    platform: varchar("platform", { length: 20 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    userTokenUnique: uniqueIndex("push_tokens_user_token_idx").on(
+      table.userId,
+      table.token
+    ),
+  })
+);
+
+// 5. Chat Mutes
+export const chatMutes = pgTable(
+  "chat_mutes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    chatId: uuid("chat_id").notNull(),
+    mutedUntil: timestamp("muted_until", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    userChatUnique: uniqueIndex("chat_mutes_user_chat_idx").on(
+      table.userId,
+      table.chatId
+    ),
+  })
+);
+
+// 6. Legal Acceptances
+export const legalAcceptances = pgTable(
+  "legal_acceptances",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    documentType: varchar("document_type", { length: 50 }).notNull(),
+    version: varchar("version", { length: 20 }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index("legal_acceptances_user_idx").on(table.userId),
+  })
+);
+
+// 7. Rate Limit Counters
+export const rateLimitCounters = pgTable(
+  "rate_limit_counters",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    key: varchar("key", { length: 255 }).notNull(),
+    points: integer("points").notNull().default(1),
+    expireAt: timestamp("expire_at", { withTimezone: true }).notNull(),
+  },
+  (table) => ({
+    keyUnique: uniqueIndex("rate_limit_counters_key_idx").on(table.key),
+  })
+);
+
+// 8. SMS Outbox
+export const smsOutbox = pgTable(
+  "sms_outbox",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    phoneNumber: varchar("phone_number", { length: 20 }).notNull(),
+    message: text("message").notNull(),
+    status: varchar("status", { length: 20 }).notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+  },
+  (table) => ({
+    statusIdx: index("sms_outbox_status_idx").on(table.status),
+  })
+);
