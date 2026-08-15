@@ -15,13 +15,17 @@ import {
   Image,
   TouchableOpacity,
   ActivityIndicator,
+  Modal,
+  SafeAreaView,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { onboardingApi } from '@/api/onboardingApi';
+import { Ionicons } from '@expo/vector-icons';
 
 const C = {
   bg: '#0a0a0b',
   bg2: '#111113',
+  bg3: '#1a1a1e',
   ink: '#c27b10',
   inkDim: 'rgba(243,241,236,0.5)',
   accent: '#c9b48b',
@@ -33,8 +37,7 @@ const C = {
   success: '#6bcf7f',
 };
 
-// Default values
-const DEFAULT_ABOUT = 'Hey there! I\'m using ONB';
+const DEFAULT_ABOUT = "Hey there! I'm using ONB";
 
 export default function ProfileSetupScreen() {
   const params = useLocalSearchParams<{ phoneNumber: string }>();
@@ -43,8 +46,8 @@ export default function ProfileSetupScreen() {
   const [about, setAbout] = useState(DEFAULT_ABOUT);
   const [isLoading, setIsLoading] = useState(false);
   const [isPickingImage, setIsPickingImage] = useState(false);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
 
-  // Validation: check for actual visible characters
   const hasVisibleChars = (text: string): boolean => {
     return text.trim().length > 0;
   };
@@ -52,9 +55,7 @@ export default function ProfileSetupScreen() {
   const isNameValid = hasVisibleChars(name);
   const isFormValid = isNameValid;
 
-  // About field handler - reverts to default if cleared
   const handleAboutChange = (text: string) => {
-    // If text is empty or only whitespace, revert to default
     if (!text.trim()) {
       setAbout(DEFAULT_ABOUT);
     } else {
@@ -62,10 +63,11 @@ export default function ProfileSetupScreen() {
     }
   };
 
-  // Photo picker handlers
   const handlePickImage = async () => {
     try {
       setIsPickingImage(true);
+      setShowPhotoModal(false);
+      
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -87,6 +89,8 @@ export default function ProfileSetupScreen() {
   const handleTakePhoto = async () => {
     try {
       setIsPickingImage(true);
+      setShowPhotoModal(false);
+      
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       
       if (status !== 'granted') {
@@ -111,21 +115,11 @@ export default function ProfileSetupScreen() {
     }
   };
 
-  const showPhotoOptions = () => {
-    Alert.alert(
-      'Profile Photo',
-      'Choose a photo for your profile',
-      [
-        { text: 'Take Photo', onPress: handleTakePhoto },
-        { text: 'Choose from Library', onPress: handlePickImage },
-        { text: 'Remove Photo', onPress: () => setPhoto(null), style: 'destructive' },
-        { text: 'Cancel', style: 'cancel' },
-      ],
-      { userInterfaceStyle: 'dark' }
-    );
+  const handleRemovePhoto = () => {
+    setPhoto(null);
+    setShowPhotoModal(false);
   };
 
-  // Get initials for default avatar
   const getInitials = (): string => {
     if (!name.trim()) return '?';
     const parts = name.trim().split(' ');
@@ -133,9 +127,7 @@ export default function ProfileSetupScreen() {
     return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
   };
 
-  // Submit handler
   const handleContinue = async () => {
-    // Validate name has visible characters
     if (!isFormValid) {
       Alert.alert('Name Required', 'Please enter your name to continue.');
       return;
@@ -151,8 +143,7 @@ export default function ProfileSetupScreen() {
         about: about.trim() || DEFAULT_ABOUT,
       });
 
-      // Success - navigate to main app
-      router.replace('/(tabs)'); // Adjust to your main app route
+      router.replace('/(tabs)');
     } catch (error: any) {
       Alert.alert(
         'Error', 
@@ -170,10 +161,9 @@ export default function ProfileSetupScreen() {
       end={{ x: 0.5, y: 0.45 }}
       style={styles.root}
     >
-      {/* Header */}
       <View style={styles.top}>
         <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
-          <Text style={styles.backText}>←</Text>
+          <Ionicons name="chevron-back" size={24} color={C.ink} />
         </Pressable>
         <Text style={styles.topLabel}>ONB</Text>
         <View style={styles.topSpacer} />
@@ -195,12 +185,13 @@ export default function ProfileSetupScreen() {
               Tell us about yourself. You can always change this later.
             </Text>
 
-            {/* Profile Photo - Optional */}
+            {/* Profile Photo */}
             <View style={styles.photoSection}>
               <TouchableOpacity 
                 style={styles.photoContainer} 
-                onPress={showPhotoOptions}
+                onPress={() => setShowPhotoModal(true)}
                 disabled={isLoading || isPickingImage}
+                activeOpacity={0.7}
               >
                 {photo ? (
                   <Image source={{ uri: photo }} style={styles.photo} />
@@ -211,17 +202,17 @@ export default function ProfileSetupScreen() {
                 )}
                 {(isPickingImage || isLoading) && (
                   <View style={styles.photoLoading}>
-                    <ActivityIndicator size="small" color={C.ink} />
+                    <ActivityIndicator size="large" color={C.ink} />
                   </View>
                 )}
                 <View style={styles.photoEditBadge}>
-                  <Text style={styles.photoEditIcon}>📷</Text>
+                  <Ionicons name="camera" size={14} color={C.bg} />
                 </View>
               </TouchableOpacity>
-              <Text style={styles.photoHint}>Tap to add a photo (optional)</Text>
+              <Text style={styles.photoHint}>Tap to add or change photo</Text>
             </View>
 
-            {/* Name Field - Required */}
+            {/* Name Field */}
             <View style={styles.fieldGroup}>
               <View style={styles.labelRow}>
                 <Text style={styles.label}>Full Name</Text>
@@ -247,13 +238,16 @@ export default function ProfileSetupScreen() {
                 <Text style={styles.errorText}>Name cannot be empty or only spaces</Text>
               )}
               {isNameValid && name.length > 0 && (
-                <Text style={styles.successText}>✓ Looks good</Text>
+                <View style={styles.successContainer}>
+                  <Ionicons name="checkmark-circle" size={14} color={C.success} />
+                  <Text style={styles.successText}>Looks good</Text>
+                </View>
               )}
             </View>
 
-            {/* About/Status Field - Pre-filled, editable, can't be empty */}
+            {/* About Field */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>About / Status</Text>
+              <Text style={styles.label}>About</Text>
               <View style={styles.inputWrap}>
                 <TextInput
                   style={[styles.input, styles.aboutInput]}
@@ -270,9 +264,6 @@ export default function ProfileSetupScreen() {
                 />
               </View>
               <Text style={styles.charCount}>{about.length}/80</Text>
-              <Text style={styles.hint}>
-                Can't be fully empty - it'll revert to default if you clear it
-              </Text>
             </View>
 
             {/* Submit Button */}
@@ -292,6 +283,83 @@ export default function ProfileSetupScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Photo Options Modal */}
+      <Modal
+        visible={showPhotoModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPhotoModal(false)}
+      >
+        <SafeAreaView style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHandle} />
+            
+            <Text style={styles.modalTitle}>Profile Photo</Text>
+            <Text style={styles.modalSubtitle}>
+              Choose a photo for your profile
+            </Text>
+
+            <View style={styles.modalOptions}>
+              <TouchableOpacity 
+                style={styles.modalOption} 
+                onPress={handleTakePhoto}
+                activeOpacity={0.6}
+              >
+                <View style={[styles.modalIconContainer, styles.cameraIcon]}>
+                  <Ionicons name="camera" size={28} color={C.ink} />
+                </View>
+                <View style={styles.modalOptionText}>
+                  <Text style={styles.modalOptionTitle}>Take Photo</Text>
+                  <Text style={styles.modalOptionDesc}>Capture using camera</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={C.inkDim} />
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.modalOption} 
+                onPress={handlePickImage}
+                activeOpacity={0.6}
+              >
+                <View style={[styles.modalIconContainer, styles.galleryIcon]}>
+                  <Ionicons name="images" size={28} color={C.ink} />
+                </View>
+                <View style={styles.modalOptionText}>
+                  <Text style={styles.modalOptionTitle}>Choose from Gallery</Text>
+                  <Text style={styles.modalOptionDesc}>Select from photos</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={C.inkDim} />
+              </TouchableOpacity>
+
+              {photo && (
+                <TouchableOpacity 
+                  style={[styles.modalOption, styles.removeOption]} 
+                  onPress={handleRemovePhoto}
+                  activeOpacity={0.6}
+                >
+                  <View style={[styles.modalIconContainer, styles.removeIcon]}>
+                    <Ionicons name="trash-outline" size={24} color={C.fail} />
+                  </View>
+                  <View style={styles.modalOptionText}>
+                    <Text style={[styles.modalOptionTitle, styles.removeText]}>
+                      Remove Photo
+                    </Text>
+                    <Text style={styles.modalOptionDesc}>Delete current photo</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <TouchableOpacity 
+              style={styles.modalCancel}
+              onPress={() => setShowPhotoModal(false)}
+              activeOpacity={0.6}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
     </LinearGradient>
   );
 }
@@ -309,11 +377,6 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     padding: 4,
-  },
-  backText: {
-    color: C.ink,
-    fontSize: 18,
-    fontWeight: '500',
   },
   topSpacer: {
     flex: 1,
@@ -395,7 +458,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     borderRadius: 50,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -404,16 +467,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     right: 0,
     backgroundColor: C.ink,
-    borderRadius: 14,
-    width: 28,
-    height: 28,
+    borderRadius: 16,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: C.bg2,
-  },
-  photoEditIcon: {
-    fontSize: 14,
   },
   photoHint: {
     color: C.inkDim,
@@ -471,22 +531,21 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontFamily: 'SpaceGrotesk-Regular',
   },
+  successContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
   successText: {
     color: C.success,
     fontSize: 11.5,
-    marginTop: 4,
     fontFamily: 'SpaceGrotesk-Regular',
   },
   charCount: {
     color: C.inkDim,
     fontSize: 10,
     textAlign: 'right',
-    marginTop: 4,
-    fontFamily: 'SpaceGrotesk-Regular',
-  },
-  hint: {
-    color: C.inkDim,
-    fontSize: 11,
     marginTop: 4,
     fontFamily: 'SpaceGrotesk-Regular',
   },
@@ -514,5 +573,108 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 14,
     fontFamily: 'SpaceGrotesk-Regular',
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: C.bg2,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: C.borderSoft,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    color: C.text,
+    fontSize: 20,
+    fontWeight: '600',
+    textAlign: 'center',
+    fontFamily: 'Fraunces-Black',
+    marginBottom: 4,
+  },
+  modalSubtitle: {
+    color: C.inkDim,
+    fontSize: 14,
+    textAlign: 'center',
+    fontFamily: 'SpaceGrotesk-Regular',
+    marginBottom: 24,
+  },
+  modalOptions: {
+    gap: 12,
+    marginBottom: 20,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: C.bg,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: C.borderSoft,
+  },
+  modalIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  cameraIcon: {
+    backgroundColor: 'rgba(194, 123, 16, 0.15)',
+  },
+  galleryIcon: {
+    backgroundColor: 'rgba(107, 207, 127, 0.15)',
+  },
+  removeIcon: {
+    backgroundColor: 'rgba(226, 104, 74, 0.15)',
+  },
+  modalOptionText: {
+    flex: 1,
+  },
+  modalOptionTitle: {
+    color: C.text,
+    fontSize: 15,
+    fontWeight: '500',
+    fontFamily: 'SpaceGrotesk-Medium',
+  },
+  modalOptionDesc: {
+    color: C.inkDim,
+    fontSize: 12,
+    fontFamily: 'SpaceGrotesk-Regular',
+    marginTop: 1,
+  },
+  removeOption: {
+    borderColor: 'rgba(226, 104, 74, 0.3)',
+  },
+  removeText: {
+    color: C.fail,
+  },
+  modalCancel: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderRadius: 14,
+    backgroundColor: C.bg,
+    borderWidth: 1,
+    borderColor: C.borderSoft,
+  },
+  modalCancelText: {
+    color: C.inkDim,
+    fontSize: 16,
+    fontWeight: '500',
+    fontFamily: 'SpaceGrotesk-Medium',
   },
 });
