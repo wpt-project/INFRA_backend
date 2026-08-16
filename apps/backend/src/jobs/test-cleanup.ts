@@ -5,7 +5,6 @@ import {
   otpVerifications,
   blocks,
   reports,
-  messageRelay,
 } from '../db/schema.ts';
 import { runCleanupJob } from './cleanup.ts';
 import { eq } from 'drizzle-orm';
@@ -14,7 +13,6 @@ async function verifyCleanup() {
   console.log('--- Setting Up Cleanup Test Data ---');
 
   const now = new Date();
-  const past30Days = new Date(now.getTime() - 31 * 24 * 60 * 60 * 1000);
   const past48Hours = new Date(now.getTime() - 49 * 60 * 60 * 1000);
 
   // 1. Insert an expired OTP record
