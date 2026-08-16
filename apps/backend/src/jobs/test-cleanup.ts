@@ -1,12 +1,12 @@
 import 'dotenv/config';
-import { db } from '../db/index.ts';
+import { db } from '../db/index.js';
 import {
   users,
   otpVerifications,
   blocks,
   reports,
-} from '../db/schema.ts';
-import { runCleanupJob } from './cleanup.ts';
+} from '../db/schema.js';
+import { runCleanupJob } from './cleanup.js';
 import { eq } from 'drizzle-orm';
 
 async function verifyCleanup() {
@@ -16,14 +16,18 @@ async function verifyCleanup() {
   const past48Hours = new Date(now.getTime() - 49 * 60 * 60 * 1000);
 
   // 1. Insert an expired OTP record
-  const [testOtp] = await db
-    .insert(otpVerifications)
-    .values({
-      phoneNumber: '+10000000000',
-      codeHash: 'hash',
-      expiresAt: new Date(now.getTime() - 60000),
-    })
-    .returning();
+ const [testOtp] = await db
+  .insert(otpVerifications)
+  .values({
+    phoneNumber: '+10000000000',
+    codeHash: 'hash',
+    expiresAt: new Date(now.getTime() - 60000),
+  })
+  .returning();
+
+if (!testOtp) {
+  throw new Error('Failed to create test OTP');
+}
 
   // 2. Insert a soft-deleted user past 48h cooldown
   const [testUser] = await db
@@ -34,6 +38,9 @@ async function verifyCleanup() {
       deletedAt: past48Hours,
     })
     .returning();
+    if (!testUser) {
+  throw new Error('Failed to create test user');
+}
 
   // 3. Insert a block record (MUST NOT BE DELETED)
   await db.insert(blocks).values({
@@ -49,6 +56,9 @@ async function verifyCleanup() {
       reportedPhoneHash: 'hash_b',
     })
     .returning();
+    if (!testReport) {
+  throw new Error('Failed to create test report');
+}
 
   console.log('✓ Test data inserted.');
   console.log('--- Executing Cleanup Job ---');

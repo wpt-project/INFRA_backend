@@ -1,11 +1,11 @@
 import 'dotenv/config';
-import { db } from '../db/index.ts';
+import { db } from '../db/index.js';
 import {
   messageRelay,
   reportEvidence,
   users,
   otpVerifications,
-} from '../db/schema.ts';
+} from '../db/schema.js';
 import { sql, lt, or, isNotNull } from 'drizzle-orm';
 
 export async function runCleanupJob() {
