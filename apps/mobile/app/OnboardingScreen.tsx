@@ -1,18 +1,4 @@
-/**
- * OnboardingScreen.tsx
- *
- * React Native conversion of the "ONB — Tap to Proceed" HTML screen.
- *
- * Dependencies to install:
- *   expo install expo-linear-gradient expo-font
- *
- * Fonts (optional but matches the original design):
- *   Fraunces (italic + 300/400/800 weights) — https://fonts.google.com/specimen/Fraunces
- *   Space Grotesk (400/500/600) — https://fonts.google.com/specimen/Space+Grotesk
- *   Load them with expo-font (see loadFontsAsync below) or drop the .ttf files into
- *   your assets folder and load via useFonts(). Falls back to system serif/sans if
- *   not loaded.
- */
+// app/OnboardingScreen.tsx
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
@@ -27,20 +13,21 @@ import {
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
+const RING_ENABLED = false;
+
 const COLORS = {
-  bg: '#0a0a0b',
-  bg2: '#111113',
-  ink: '#c27b10',
-  inkDim: 'rgba(243,241,236,0.5)',
-  inkFaint: '#c27b10',
-  accent: '#c9b48b',
-  ring: 'rgba(255, 174, 13, 0.445)',
-  ringSoft: 'rgba(201,180,139,0.12)',
+  bg: '#0B0F14',
+  bg2: '#15171C',
+  ink: '#3FC6B8',
+  inkDim: '#9AA0AC',
+  inkFaint: '#3FC6B8',
+  accent: '#3FC6B8',
+  ring: 'rgba(63, 198, 184, 0.445)',
+  ringSoft: 'rgba(63,198,184,0.12)',
 };
 
 interface RippleData {
@@ -51,20 +38,6 @@ interface RippleData {
   progress: Animated.Value;
 }
 
-const Chevron = ({ style }: { style?: any }) => (
-  <Animated.View style={style}>
-    <Svg width={16} height={9} viewBox="0 0 16 9" fill="none">
-      <Path
-        d="M1 8L8 1L15 8"
-        stroke={COLORS.inkDim}
-        strokeWidth={1.3}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  </Animated.View>
-);
-
 export default function OnboardingScreen() {
   const router = useRouter();
   const [ripples, setRipples] = useState<RippleData[]>([]);
@@ -72,11 +45,9 @@ export default function OnboardingScreen() {
 
   // breathing halo/ring animation
   const breathe = useRef(new Animated.Value(0)).current;
-  // chevron rise animation (two staggered chevrons)
-  const rise1 = useRef(new Animated.Value(0)).current;
-  const rise2 = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    if (!RING_ENABLED) return;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(breathe, {
@@ -96,36 +67,6 @@ export default function OnboardingScreen() {
     loop.start();
     return () => loop.stop();
   }, [breathe]);
-
-  useEffect(() => {
-    const makeRiseLoop = (val: Animated.Value, delay: number) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(val, {
-            toValue: 1,
-            duration: 900,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(val, {
-            toValue: 0,
-            duration: 900,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-        ])
-      );
-
-    const loop1 = makeRiseLoop(rise1, 0);
-    const loop2 = makeRiseLoop(rise2, 180);
-    loop1.start();
-    loop2.start();
-    return () => {
-      loop1.stop();
-      loop2.stop();
-    };
-  }, [rise1, rise2]);
 
   const handlePress = useCallback(
     (e: GestureResponderEvent) => {
@@ -157,11 +98,6 @@ export default function OnboardingScreen() {
   const ringScale = breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] });
   const ringOpacity = breathe.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.75] });
 
-  const rise1TranslateY = rise1.interpolate({ inputRange: [0, 1], outputRange: [0, -4] });
-  const rise1Opacity = rise1.interpolate({ inputRange: [0, 1], outputRange: [0.9, 0.35] });
-  const rise2TranslateY = rise2.interpolate({ inputRange: [0, 1], outputRange: [0, -4] });
-  const rise2Opacity = rise2.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0.18] }); // base 0.5 * rise opacity
-
   return (
     <Pressable style={styles.screenWrap} onPress={handlePress}>
       <LinearGradient
@@ -174,45 +110,34 @@ export default function OnboardingScreen() {
       {/* top bar */}
       <View style={styles.top}>
         <Text style={styles.topLabel}>ONB</Text>
-        <Text style={[styles.topLabel, { color: COLORS.inkDim }]}>Version 1.0</Text>
       </View>
 
       {/* center wordmark */}
       <View style={styles.center} pointerEvents="none">
-        <Animated.View
-          style={[
-            styles.halo,
-            { transform: [{ scale: haloScale }], opacity: haloOpacity },
-          ]}
-        />
-        <Animated.View
-          style={[
-            styles.ring,
-            { transform: [{ scale: ringScale }], opacity: ringOpacity },
-          ]}
-        />
+        {RING_ENABLED && (
+          <Animated.View
+            style={[
+              styles.halo,
+              { transform: [{ scale: haloScale }], opacity: haloOpacity },
+            ]}
+          />
+        )}
+        {RING_ENABLED && (
+          <Animated.View
+            style={[
+              styles.ring,
+              { transform: [{ scale: ringScale }], opacity: ringOpacity },
+            ]}
+          />
+        )}
         <View style={styles.wordmarkWrap}>
           <Text style={styles.wordmark}>ONB</Text>
-          <Text style={styles.tagline}>Begin quietly</Text>
+          <Text style={styles.tagline}>Safe Messenger</Text>
         </View>
       </View>
 
       {/* bottom CTA */}
       <View style={styles.bottom} pointerEvents="none">
-        <View style={styles.chevrons}>
-          <Chevron
-            style={{
-              transform: [{ translateY: rise1TranslateY }],
-              opacity: rise1Opacity,
-            }}
-          />
-          <Chevron
-            style={{
-              transform: [{ translateY: rise2TranslateY }],
-              opacity: rise2Opacity,
-            }}
-          />
-        </View>
         <Text style={styles.ctaLabel}>Tap to proceed</Text>
         <View style={styles.ctaLine} />
       </View>
@@ -293,7 +218,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Fraunces-Black',
     fontWeight: '800',
     fontSize: 64,
-    letterSpacing: 9, // approximates 0.14em at 64px
+    letterSpacing: 9,
     color: COLORS.ink,
   },
   tagline: {
@@ -310,10 +235,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
     paddingBottom: 56,
-  },
-  chevrons: {
-    alignItems: 'center',
-    gap: 2,
   },
   ctaLabel: {
     fontSize: 12,

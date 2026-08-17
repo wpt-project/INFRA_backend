@@ -13,14 +13,14 @@ import {
 } from 'react-native';
 
 const C = {
-  bg: '#0a0a0b',
-  bg2: '#111113',
-  ink: '#c27b10',
-  inkDim: 'rgba(243,241,236,0.5)',
-  accent: '#c9b48b',
-  ringSoft: 'rgba(201,180,139,0.12)',
-  borderSoft: 'rgba(201,180,139,0.22)',
-  text: '#f3f1ec',
+  bg: '#0B0F14',
+  bg2: '#15171C',
+  ink: '#3FC6B8',
+  inkDim: '#9AA0AC',
+  accent: '#3FC6B8',
+  ringSoft: 'rgba(63,198,184,0.12)',
+  borderSoft: '#2E323C',
+  text: '#F3F3F4',
 };
 
 export default function LegalAcceptanceScreen() {

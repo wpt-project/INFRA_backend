@@ -23,17 +23,17 @@ import { onboardingApi } from '@/api/onboardingApi';
 import { Ionicons } from '@expo/vector-icons';
 
 const C = {
-  bg: '#0a0a0b',
-  bg2: '#111113',
-  bg3: '#1a1a1e',
-  ink: '#c27b10',
-  inkDim: 'rgba(243,241,236,0.5)',
-  accent: '#c9b48b',
-  ring: 'rgba(255,174,13,0.445)',
-  ringSoft: 'rgba(201,180,139,0.12)',
-  borderSoft: 'rgba(201,180,139,0.22)',
-  text: '#f3f1ec',
-  fail: '#e2684a',
+  bg: '#0B0F14',
+  bg2: '#15171C',
+  bg3: '#1A1D24',
+  ink: '#3FC6B8',
+  inkDim: '#9AA0AC',
+  accent: '#3FC6B8',
+  ring: 'rgba(63,198,184,0.445)',
+  ringSoft: 'rgba(63,198,184,0.12)',
+  borderSoft: '#2E323C',
+  text: '#F3F3F4',
+  fail: '#E5484D',
   success: '#6bcf7f',
 };
 
@@ -56,10 +56,13 @@ export default function ProfileSetupScreen() {
   const isFormValid = isNameValid;
 
   const handleAboutChange = (text: string) => {
-    if (!text.trim()) {
+    setAbout(text);
+  };
+
+  const handleAboutBlur = () => {
+    // Only set default if the field is completely empty
+    if (!about.trim()) {
       setAbout(DEFAULT_ABOUT);
-    } else {
-      setAbout(text);
     }
   };
 
@@ -258,6 +261,7 @@ export default function ProfileSetupScreen() {
                   returnKeyType="done"
                   editable={!isLoading}
                   onChangeText={handleAboutChange}
+                  onBlur={handleAboutBlur}
                   multiline
                   numberOfLines={2}
                   maxLength={80}
@@ -634,13 +638,13 @@ const styles = StyleSheet.create({
     marginRight: 14,
   },
   cameraIcon: {
-    backgroundColor: 'rgba(194, 123, 16, 0.15)',
+    backgroundColor: 'rgba(63, 198, 184, 0.15)',
   },
   galleryIcon: {
     backgroundColor: 'rgba(107, 207, 127, 0.15)',
   },
   removeIcon: {
-    backgroundColor: 'rgba(226, 104, 74, 0.15)',
+    backgroundColor: 'rgba(229, 72, 77, 0.15)',
   },
   modalOptionText: {
     flex: 1,
@@ -658,7 +662,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   removeOption: {
-    borderColor: 'rgba(226, 104, 74, 0.3)',
+    borderColor: 'rgba(229, 72, 77, 0.3)',
   },
   removeText: {
     color: C.fail,

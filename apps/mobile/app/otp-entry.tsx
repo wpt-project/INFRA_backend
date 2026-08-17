@@ -18,16 +18,16 @@ import { onboardingApi } from '@/api/onboardingApi';
 import { useSession } from '@/hooks/useSession';
 
 const C = {
-  bg: '#0a0a0b',
-  bg2: '#111113',
-  ink: '#c27b10',
-  inkDim: 'rgba(243,241,236,0.5)',
-  accent: '#c9b48b',
-  ring: 'rgba(255,174,13,0.445)',
-  ringSoft: 'rgba(201,180,139,0.12)',
-  borderSoft: 'rgba(201,180,139,0.22)',
-  text: '#f3f1ec',
-  fail: '#e2684a',
+  bg: '#0B0F14',
+  bg2: '#15171C',
+  ink: '#3FC6B8',
+  inkDim: '#9AA0AC',
+  accent: '#3FC6B8',
+  ring: 'rgba(63,198,184,0.445)',
+  ringSoft: 'rgba(63,198,184,0.12)',
+  borderSoft: '#2E323C',
+  text: '#F3F3F4',
+  fail: '#E5484D',
   success: '#6bcf7f',
 };
 
@@ -50,6 +50,7 @@ export default function OTPEntryScreen() {
   const lockoutInterval = useRef<NodeJS.Timeout | null>(null);
   const resendInterval = useRef<NodeJS.Timeout | null>(null);
   const shakeAnimation = useRef(new Animated.Value(0)).current;
+  const isVerifying = useRef(false);
 
   const OTP_EXPIRY_SECONDS = 300;
   const [otpExpiryTime, setOtpExpiryTime] = useState(Date.now() + OTP_EXPIRY_SECONDS * 1000);
@@ -148,39 +149,9 @@ export default function OTPEntryScreen() {
     ]).start();
   }, [shakeAnimation]);
 
-  const handleOtpChange = (text: string, index: number) => {
-    const newOtp = [...otp];
-    newOtp[index] = text.slice(-1);
-    setOtp(newOtp);
-    setError(null);
-    setAttemptsRemaining(null);
-
-    if (text && index < 5) {
-      inputRefs.current[index + 1]?.focus();
-    }
-
-    if (text && index === 5 && newOtp.every(digit => digit !== '')) {
-      handleVerify();
-    }
-  };
-
-  const handleKeyPress = (e: any, index: number) => {
-    if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  /**
-   * ONB-1.7: Handle OTP verification with new-device login handoff
-   * 
-   * After successful OTP verification:
-   * 1. Check if user exists
-   * 2. If existing user, create a new session (which handles the handoff)
-   * 3. Show confirmation message on the new device ONLY
-   * 4. Old devices are silently logged out
-   */
-  const handleVerify = async () => {
-    const code = otp.join('');
+  const verifyOTP = useCallback(async (code: string) => {
+    // Prevent multiple verification calls
+    if (isVerifying.current) return;
     
     if (code.length !== 6) {
       setError('Please enter all 6 digits');
@@ -199,41 +170,30 @@ export default function OTPEntryScreen() {
       return;
     }
 
+    isVerifying.current = true;
     setIsLoading(true);
     setError(null);
 
     try {
-      // Step 1: Verify OTP
       const result = await onboardingApi.verifyOtp({
         phoneNumber: params.phoneNumber || '',
         code: code,
       });
       
       if (result.status === 'success') {
-        // Step 2: Check if user exists
         const { exists, userId } = await onboardingApi.checkExistingUser({
           phoneNumber: params.phoneNumber || '',
         });
         
         if (exists && userId) {
-          // 🔄 EXISTING USER - Handle new-device login handoff
           console.log('🔄 ONB-1.7: Existing user - processing login handoff');
-          
-          // Step 3: Create session (this handles the silent logout)
           const message = await createSession(userId, params.phoneNumber || '');
-          
-          // Step 4: Show confirmation message on the new device ONLY
-          // This message appears ONLY on this device
           setConfirmationMessage(message);
           console.log('✅ ONB-1.7: Confirmation message shown on new device');
-          
-          // Step 5: Navigate to main app
-          // The old devices are already logged out silently
           setTimeout(() => {
             router.replace('/(tabs)');
-          }, 1500); // Show message briefly before navigating
+          }, 1500);
         } else {
-          // 🆕 NEW USER - Go to profile setup
           console.log('🆕 New user - routing to profile setup');
           router.push({
             pathname: '/profile-setup',
@@ -260,12 +220,55 @@ export default function OTPEntryScreen() {
       Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
+      setTimeout(() => {
+        isVerifying.current = false;
+      }, 500);
     }
+  }, [otpExpired, isLocked, lockoutSeconds, params.phoneNumber, createSession, shake]);
+
+  const handleOtpChange = (text: string, index: number) => {
+    const newOtp = [...otp];
+    newOtp[index] = text.slice(-1);
+    setOtp(newOtp);
+    setError(null);
+    setAttemptsRemaining(null);
+
+    // Move to next input if text is entered
+    if (text && index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+
+    // Auto-verify when all digits are filled
+    if (text) {
+      const allFilled = newOtp.every(digit => digit !== '');
+      if (allFilled && !isLoading && !isLocked && !otpExpired && !isVerifying.current) {
+        // Get the code directly from the newOtp array
+        const code = newOtp.join('');
+        if (code.length === 6) {
+          // Small delay to ensure UI updates before verification
+          setTimeout(() => {
+            verifyOTP(code);
+          }, 100);
+        }
+      }
+    }
+  };
+
+  const handleKeyPress = (e: any, index: number) => {
+    if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleVerifyPress = () => {
+    const code = otp.join('');
+    verifyOTP(code);
   };
 
   const handleResend = async () => {
     if (resendCooldown > 0 || isResending) return;
     
+    isVerifying.current = false;
     setIsResending(true);
     setError(null);
     setOtpExpired(false);
@@ -283,6 +286,7 @@ export default function OTPEntryScreen() {
       
       setResendCooldown(30);
       Alert.alert('Code Sent', 'A new verification code has been sent to your phone.');
+      inputRefs.current[0]?.focus();
     } catch (err) {
       Alert.alert('Error', 'Failed to resend code. Please try again.');
     } finally {
@@ -366,6 +370,7 @@ export default function OTPEntryScreen() {
                 maxLength={1}
                 editable={!isLoading && !isLocked && !otpExpired}
                 autoFocus={index === 0}
+                selectTextOnFocus
               />
             ))}
           </Animated.View>
@@ -401,7 +406,7 @@ export default function OTPEntryScreen() {
           <Pressable
             style={[styles.btn, isSubmitDisabled && styles.btnDisabled]}
             disabled={isSubmitDisabled}
-            onPress={handleVerify}
+            onPress={handleVerifyPress}
           >
             <Text style={styles.btnText}>
               {isLoading ? 'Verifying…' : 'Verify'}
