@@ -1,6 +1,5 @@
 // app/legal-acceptance.tsx
 import { router, useLocalSearchParams } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import {
   Linking,
@@ -10,17 +9,17 @@ import {
   StyleSheet,
   Text,
   View,
+  SafeAreaView,
 } from 'react-native';
 
-const C = {
-  bg: '#0B0F14',
-  bg2: '#15171C',
-  ink: '#3FC6B8',
-  inkDim: '#9AA0AC',
-  accent: '#3FC6B8',
-  ringSoft: 'rgba(63,198,184,0.12)',
-  borderSoft: '#2E323C',
-  text: '#F3F3F4',
+const COLORS = {
+  bg: '#000000',
+  cardBg: '#1C1C1E',
+  border: '#2C2C2E',
+  text: '#FFFFFF',
+  textDim: '#8E8E93',
+  accent: '#34C759',
+  accentDim: 'rgba(52,199,89,0.12)',
 };
 
 export default function LegalAcceptanceScreen() {
@@ -43,214 +42,212 @@ export default function LegalAcceptanceScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={[C.bg2, C.bg]}
-      start={{ x: 0.5, y: 0 }}
-      end={{ x: 0.5, y: 0.45 }}
-      style={styles.root}
-    >
-      <View style={styles.top}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
-        <Text style={styles.topLabel}>ONB</Text>
-        <View style={styles.topSpacer} />
-        <Text style={[styles.topLabel, { color: C.inkDim }]}>Version 1.0</Text>
-      </View>
+    <SafeAreaView style={styles.root}>
+      {/* Back arrow at top-left */}
+      <Pressable style={styles.backBtn} onPress={() => router.back()} hitSlop={16}>
+        <Text style={styles.backText}>‹</Text>
+      </Pressable>
 
-      <View style={styles.center}>
-        <View style={styles.card}>
-          <Text style={styles.title}>Before we continue</Text>
-          <Text style={styles.sub}>Please review and accept our policies to proceed.</Text>
-
-          <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-            <Text style={styles.summary}>
-              By using this app, you agree to our Terms of Service and Privacy Policy.
-              {'\n\n'}
-              You confirm that you are 16 years of age or older.
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.content}>
+          {/* Header outside card */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Before we continue</Text>
+            <Text style={styles.sub}>
+              Please review and accept our policies to proceed.
             </Text>
+          </View>
+
+          {/* Card with all content */}
+          <View style={styles.card}>
+            {/* Bullet list */}
+            <View style={styles.bulletList}>
+              <Text style={styles.bulletItem}>
+                • By using this app, you agree to our Terms of Service and Privacy Policy.
+              </Text>
+              <Text style={styles.bulletItem}>
+                • You confirm that you are 16 years of age or older.
+              </Text>
+            </View>
+
+            {/* Divider */}
+            <View style={styles.divider} />
+
+            {/* Links with arrows */}
+            <Pressable onPress={openTerms} style={styles.linkRow}>
+              <Text style={styles.linkText}>Terms of Service</Text>
+              <Text style={styles.linkArrow}>›</Text>
+            </Pressable>
 
             <View style={styles.divider} />
 
-            <Pressable onPress={openTerms} style={styles.linkRow}>
-              <Text style={styles.linkText}>Read Full Terms of Service</Text>
-              <Text style={styles.linkArrow}>→</Text>
-            </Pressable>
-
             <Pressable onPress={openPrivacy} style={styles.linkRow}>
-              <Text style={styles.linkText}>Read Privacy Policy</Text>
-              <Text style={styles.linkArrow}>→</Text>
+              <Text style={styles.linkText}>Privacy Policy</Text>
+              <Text style={styles.linkArrow}>›</Text>
             </Pressable>
 
-            <View style={styles.spacer} />
-          </ScrollView>
+            <View style={styles.divider} />
 
-          <Pressable
-            style={styles.checkboxRow}
-            onPress={() => setAccepted(!accepted)}
-            hitSlop={8}
-          >
-            <View style={[styles.checkbox, accepted && styles.checkboxChecked]}>
-              {accepted && <Text style={styles.checkmark}>✓</Text>}
-            </View>
-            <Text style={styles.checkboxLabel}>
-              I accept the Terms of Service and Privacy Policy
-            </Text>
-          </Pressable>
+            {/* Checkbox */}
+            <Pressable
+              style={styles.checkboxRow}
+              onPress={() => setAccepted(!accepted)}
+              hitSlop={8}
+            >
+              <View style={[styles.checkbox, accepted && styles.checkboxChecked]}>
+                {accepted && <Text style={styles.checkmark}>✓</Text>}
+              </View>
+              <Text style={styles.checkboxLabel}>
+                I accept the Terms of Service and Privacy Policy
+              </Text>
+            </Pressable>
 
-          <Pressable
-            style={[styles.btn, !accepted && styles.btnDisabled]}
-            disabled={!accepted}
-            onPress={handleAccept}
-          >
-            <Text style={styles.btnText}>Continue</Text>
-          </Pressable>
+            {/* Button */}
+            <Pressable
+              style={[styles.btn, !accepted && styles.btnDisabled]}
+              disabled={!accepted}
+              onPress={handleAccept}
+            >
+              <Text style={styles.btnText}>CONTINUE</Text>
+            </Pressable>
+          </View>
         </View>
-      </View>
-    </LinearGradient>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-  },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingTop: Platform.OS === 'ios' ? 56 : 32,
-    paddingHorizontal: 28,
+    backgroundColor: COLORS.bg,
   },
   backBtn: {
-    padding: 4,
-  },
-  topSpacer: {
-    flex: 1,
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 12 : 16,
+    left: 16,
+    zIndex: 10,
+    padding: 8,
   },
   backText: {
-    color: C.ink,
-    fontSize: 18,
-    fontWeight: '500',
-  },
-  topLabel: {
-    fontSize: 11,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    color: C.ink,
-    fontFamily: 'SpaceGrotesk-Medium',
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 400,
-    maxHeight: '92%',
-    alignSelf: 'center',
-    backgroundColor: C.bg2,
-    borderWidth: 1,
-    borderColor: C.borderSoft,
-    borderRadius: 20,
-    padding: 28,
-  },
-  title: {
-    color: C.ink,
+    color: COLORS.text,
     fontSize: 28,
-    lineHeight: 32,
-    marginBottom: 12,
-    fontFamily: 'Fraunces-Black',
-  },
-  sub: {
-    color: C.inkDim,
-    fontSize: 14,
-    lineHeight: 21,
-    marginBottom: 20,
-    fontFamily: 'SpaceGrotesk-Regular',
+    fontWeight: '300',
   },
   scroll: {
-    flexGrow: 0,
+    flex: 1,
   },
-  summary: {
-    color: C.text,
-    fontSize: 15,
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: 40,
+    justifyContent: 'center',
+  },
+  content: {
+    width: '100%',
+    maxWidth: 400,
+    alignSelf: 'center',
+  },
+  header: {
+    marginBottom: 24,
+  },
+  title: {
+    color: COLORS.text,
+    fontSize: 34,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  sub: {
+    color: COLORS.textDim,
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  card: {
+    backgroundColor: COLORS.cardBg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 16,
+    padding: 24,
+  },
+  bulletList: {
+    marginBottom: 16,
+  },
+  bulletItem: {
+    color: COLORS.text,
+    fontSize: 16,
     lineHeight: 24,
-    fontFamily: 'SpaceGrotesk-Regular',
+    marginBottom: 10,
   },
   divider: {
     height: 1,
-    backgroundColor: C.borderSoft,
-    marginVertical: 18,
+    backgroundColor: COLORS.border,
+    marginVertical: 12,
   },
   linkRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: C.borderSoft,
+    alignItems: 'center',
+    paddingVertical: 4,
   },
   linkText: {
-    color: C.accent,
-    fontSize: 15,
-    fontFamily: 'SpaceGrotesk-Medium',
+    color: COLORS.accent,
+    fontSize: 16,
+    fontWeight: '500',
   },
   linkArrow: {
-    color: C.ink,
-    fontSize: 16,
-  },
-  spacer: {
-    height: 20,
+    color: COLORS.textDim,
+    fontSize: 18,
+    fontWeight: '300',
   },
   checkboxRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 14,
-    marginTop: 8,
+    alignItems: 'center',
+    marginVertical: 8,
   },
   checkbox: {
     width: 24,
     height: 24,
     borderWidth: 2,
-    borderColor: C.accent,
+    borderColor: COLORS.accent,
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
-    marginTop: 2,
   },
   checkboxChecked: {
-    backgroundColor: C.ink,
-    borderColor: C.ink,
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
   },
   checkmark: {
-    color: C.bg,
-    fontSize: 15,
+    color: COLORS.bg,
+    fontSize: 16,
     fontWeight: '700',
   },
   checkboxLabel: {
-    fontSize: 15,
-    color: C.text,
     flex: 1,
-    lineHeight: 24,
-    fontFamily: 'SpaceGrotesk-Regular',
+    color: COLORS.text,
+    fontSize: 15,
+    lineHeight: 22,
   },
   btn: {
-    backgroundColor: C.ink,
+    backgroundColor: COLORS.accent,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
+    marginTop: 16,
   },
-  btnDisabled: { opacity: 0.35 },
+  btnDisabled: {
+    opacity: 0.5,
+  },
   btnText: {
-    color: C.bg,
-    fontWeight: '600',
-    fontSize: 14,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    fontFamily: 'SpaceGrotesk-Medium',
+    color: COLORS.bg,
+    fontWeight: '700',
+    fontSize: 15,
+    letterSpacing: 1,
   },
 });

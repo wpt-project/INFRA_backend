@@ -2,7 +2,6 @@
 import { onboardingApi } from '@/api/onboardingApi';
 import { COUNTRIES, type Country } from '@/constants/countries';
 import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import React, { useMemo, useState } from 'react';
 import {
   Alert,
@@ -15,19 +14,20 @@ import {
   Text,
   TextInput,
   View,
+  SafeAreaView,
 } from 'react-native';
 
 const C = {
-  bg: '#0B0F14',
-  bg2: '#15171C',
-  ink: '#3FC6B8',
-  inkDim: '#9AA0AC',
-  accent: '#3FC6B8',
-  ring: 'rgba(63,198,184,0.445)',
-  ringSoft: 'rgba(63,198,184,0.12)',
-  borderSoft: '#2E323C',
-  text: '#F3F3F4',
-  fail: '#E5484D',
+  bg: '#000000',
+  bg2: '#1C1C1E',
+  ink: '#FFFFFF',
+  inkDim: '#8E8E93',
+  accent: '#34C759',
+  ring: 'rgba(52,199,89,0.445)',
+  ringSoft: 'rgba(52,199,89,0.12)',
+  borderSoft: '#2C2C2E',
+  text: '#FFFFFF',
+  fail: '#FF3B30',
 };
 
 const INDIA = COUNTRIES.find((c) => c.iso === 'IN') ?? COUNTRIES[0];
@@ -114,58 +114,62 @@ export default function PhoneEntryScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={[C.bg2, C.bg]}
-      start={{ x: 0.5, y: 0 }}
-      end={{ x: 0.5, y: 0.45 }}
-      style={styles.root}
-    >
-      <View style={styles.top}>
-        <Text style={styles.topLabel}>ONB</Text>
-        <View style={styles.topSpacer} />
-        <Text style={[styles.topLabel, { color: C.inkDim }]}>Version 1.0</Text>
-      </View>
-
+    <SafeAreaView style={styles.root}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.center}
+        style={styles.container}
       >
-        <View style={styles.card}>
+        <View style={styles.content}>
           <Text style={styles.title}>What&apos;s your number?</Text>
-          <Text style={styles.sub}>We&apos;ll send a one-time code to verify it&apos;s you.</Text>
-
-          <Text style={styles.label}>Phone number</Text>
-          <View style={styles.row}>
-            <Pressable style={styles.cc} onPress={() => setOpen(true)} accessibilityRole="button">
-              <Text style={styles.ccFlag}>{selected.flag}</Text>
-              <Text style={styles.ccCode}>{selected.dial}</Text>
-            </Pressable>
-            <TextInput
-              style={styles.num}
-              value={phone}
-              keyboardType="phone-pad"
-              placeholder={placeholder}
-              placeholderTextColor={C.inkDim}
-              editable={!isLoading}
-              onChangeText={handlePhoneChange}
-            />
-          </View>
-          {phone.length > 0 && !valid && (
-            <Text style={styles.error}>
-              Enter a valid {selected.name} number ({lengthLabel(selected.lengths)})
-            </Text>
-          )}
-          <Text style={styles.note}>
-            We&apos;ll send the code to {selected.flag} {selected.dial} {phone.trim() || 'your number'}.
+          <Text style={styles.sub}>
+            We&apos;ll send a one-time code to verify it&apos;s you.
           </Text>
+
+          <View style={styles.inputSection}>
+            <Text style={styles.label}>PHONE NUMBER</Text>
+            <View style={styles.row}>
+              <Pressable 
+                style={styles.cc} 
+                onPress={() => setOpen(true)} 
+                accessibilityRole="button"
+              >
+                <Text style={styles.ccFlag}>{selected.flag}</Text>
+                <Text style={styles.ccCode}>{selected.dial}</Text>
+              </Pressable>
+              <TextInput
+                style={styles.num}
+                value={phone}
+                keyboardType="phone-pad"
+                placeholder={placeholder}
+                placeholderTextColor={C.inkDim}
+                editable={!isLoading}
+                onChangeText={handlePhoneChange}
+              />
+            </View>
+            {phone.length > 0 && !valid && (
+              <Text style={styles.error}>
+                Enter a valid {selected.name} number ({lengthLabel(selected.lengths)})
+              </Text>
+            )}
+            <Text style={styles.note}>
+              We&apos;ll send the code to {selected.dial} {phone.trim() || 'your number'}.
+            </Text>
+          </View>
 
           <Pressable
             style={[styles.btn, (!valid || isLoading) && styles.btnDisabled]}
             disabled={!valid || isLoading}
             onPress={handleContinue}
           >
-            <Text style={styles.btnText}>{isLoading ? 'Sending…' : 'Send code'}</Text>
+            <Text style={styles.btnText}>
+              {isLoading ? 'Sending…' : 'SEND CODE'}
+            </Text>
           </Pressable>
+
+          <Text style={styles.footerText}>
+            Your number is safe with us.{'\n'}
+            We never share it with others.
+          </Text>
         </View>
       </KeyboardAvoidingView>
 
@@ -208,127 +212,124 @@ export default function PhoneEntryScreen() {
           </View>
         </View>
       </Modal>
-    </LinearGradient>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    backgroundColor: C.bg,
   },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingTop: Platform.OS === 'ios' ? 56 : 32,
-    paddingHorizontal: 28,
-  },
-  topSpacer: {
+  container: {
     flex: 1,
   },
-  topLabel: {
-    fontSize: 11,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    color: C.ink,
-    fontFamily: 'SpaceGrotesk-Medium',
-  },
-  center: {
+  content: {
     flex: 1,
-    justifyContent: 'center',
     paddingHorizontal: 24,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 400,
-    alignSelf: 'center',
-    backgroundColor: C.bg2,
-    borderWidth: 1,
-    borderColor: C.borderSoft,
-    borderRadius: 20,
-    padding: 28,
+    paddingTop: 60,
+    paddingBottom: 40,
+    justifyContent: 'space-between',
   },
   title: {
     color: C.ink,
-    fontSize: 32,
-    lineHeight: 36,
-    marginBottom: 12,
-    fontFamily: 'Fraunces-Black',
+    fontSize: 34,
+    fontWeight: '700',
+    marginBottom: 8,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   sub: {
     color: C.inkDim,
-    fontSize: 14,
-    lineHeight: 21,
-    marginBottom: 32,
-    fontFamily: 'SpaceGrotesk-Regular',
+    fontSize: 16,
+    lineHeight: 22,
+    marginBottom: 40,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+  },
+  inputSection: {
+    flex: 1,
   },
   label: {
-    color: C.accent,
-    fontSize: 11,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    marginBottom: 10,
-    fontFamily: 'SpaceGrotesk-Medium',
+    color: C.inkDim,
+    fontSize: 12,
+    letterSpacing: 1,
+    marginBottom: 8,
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   row: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 12,
   },
   cc: {
-    minWidth: 104,
-    backgroundColor: C.bg,
-    borderWidth: 1,
-    borderColor: C.borderSoft,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  ccFlag: { fontSize: 16 },
-  ccCode: { color: C.text, fontSize: 14, fontFamily: 'SpaceGrotesk-Medium' },
-  num: {
-    flex: 1,
-    backgroundColor: C.bg,
+    minWidth: 90,
+    backgroundColor: C.bg2,
     borderWidth: 1,
     borderColor: C.borderSoft,
     borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 13,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  ccFlag: { 
+    fontSize: 18,
+  },
+  ccCode: { 
+    color: C.text, 
+    fontSize: 16, 
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+  },
+  num: {
+    flex: 1,
+    backgroundColor: C.bg2,
+    borderWidth: 1,
+    borderColor: C.borderSoft,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     color: C.text,
     fontSize: 16,
-    fontFamily: 'SpaceGrotesk-Regular',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   error: {
     color: C.fail,
-    fontSize: 11.5,
+    fontSize: 13,
     marginTop: 8,
-    fontFamily: 'SpaceGrotesk-Regular',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   note: {
     color: C.inkDim,
-    fontSize: 11,
-    marginTop: 10,
-    lineHeight: 16,
-    fontFamily: 'SpaceGrotesk-Regular',
+    fontSize: 13,
+    marginTop: 12,
+    lineHeight: 18,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   btn: {
-    marginTop: 28,
-    backgroundColor: C.ink,
+    marginTop: 20,
+    backgroundColor: C.accent,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
   },
-  btnDisabled: { opacity: 0.35 },
+  btnDisabled: { 
+    opacity: 0.5,
+  },
   btnText: {
     color: C.bg,
-    fontWeight: '600',
-    fontSize: 14,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    fontFamily: 'SpaceGrotesk-Medium',
+    fontWeight: '700',
+    fontSize: 15,
+    letterSpacing: 1,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+  },
+  footerText: {
+    color: C.inkDim,
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 32,
+    lineHeight: 20,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   overlay: {
     flex: 1,
@@ -363,9 +364,10 @@ const styles = StyleSheet.create({
   sheetTitle: {
     color: C.ink,
     fontSize: 18,
-    fontFamily: 'SpaceGrotesk-Medium',
+    fontWeight: '600',
     paddingHorizontal: 20,
     paddingBottom: 12,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   search: {
     marginHorizontal: 20,
@@ -378,9 +380,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     color: C.text,
     fontSize: 14,
-    fontFamily: 'SpaceGrotesk-Regular',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
-  list: { paddingHorizontal: 8 },
+  list: { 
+    paddingHorizontal: 8,
+  },
   rowItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -389,21 +393,31 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     borderRadius: 12,
   },
-  rowItemActive: { backgroundColor: C.ringSoft },
-  rowFlag: { fontSize: 16 },
+  rowItemActive: { 
+    backgroundColor: C.ringSoft,
+  },
+  rowFlag: { 
+    fontSize: 18,
+  },
   rowName: {
     flex: 1,
     color: C.text,
-    fontSize: 14.5,
-    fontFamily: 'SpaceGrotesk-Regular',
+    fontSize: 15,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
-  rowNameActive: { color: C.accent },
-  rowCode: { color: C.inkDim, fontSize: 13, fontFamily: 'SpaceGrotesk-Regular' },
+  rowNameActive: { 
+    color: C.accent,
+  },
+  rowCode: { 
+    color: C.inkDim, 
+    fontSize: 14, 
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+  },
   empty: {
     color: C.inkDim,
     fontSize: 13,
     textAlign: 'center',
     paddingVertical: 28,
-    fontFamily: 'SpaceGrotesk-Regular',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
 });

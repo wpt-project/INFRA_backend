@@ -1,6 +1,5 @@
 // app/profile-setup.tsx
 import { router, useLocalSearchParams } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import {
   Platform,
@@ -22,19 +21,16 @@ import * as ImagePicker from 'expo-image-picker';
 import { onboardingApi } from '@/api/onboardingApi';
 import { Ionicons } from '@expo/vector-icons';
 
-const C = {
-  bg: '#0B0F14',
-  bg2: '#15171C',
-  bg3: '#1A1D24',
-  ink: '#3FC6B8',
-  inkDim: '#9AA0AC',
-  accent: '#3FC6B8',
-  ring: 'rgba(63,198,184,0.445)',
-  ringSoft: 'rgba(63,198,184,0.12)',
-  borderSoft: '#2E323C',
-  text: '#F3F3F4',
-  fail: '#E5484D',
-  success: '#6bcf7f',
+const COLORS = {
+  bg: '#000000',
+  inputBg: '#1C1C1E',
+  border: '#2C2C2E',
+  text: '#FFFFFF',
+  textDim: '#8E8E93',
+  accent: '#34C759',
+  accentDim: 'rgba(52,199,89,0.12)',
+  error: '#FF3B30',
+  success: '#34C759',
 };
 
 const DEFAULT_ABOUT = "Hey there! I'm using ONB";
@@ -60,7 +56,6 @@ export default function ProfileSetupScreen() {
   };
 
   const handleAboutBlur = () => {
-    // Only set default if the field is completely empty
     if (!about.trim()) {
       setAbout(DEFAULT_ABOUT);
     }
@@ -139,7 +134,7 @@ export default function ProfileSetupScreen() {
     setIsLoading(true);
 
     try {
-      const result = await onboardingApi.createProfile({
+      await onboardingApi.createProfile({
         phoneNumber: params.phoneNumber || '',
         name: name.trim(),
         photo: photo || undefined,
@@ -158,35 +153,29 @@ export default function ProfileSetupScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={[C.bg2, C.bg]}
-      start={{ x: 0.5, y: 0 }}
-      end={{ x: 0.5, y: 0.45 }}
-      style={styles.root}
-    >
-      <View style={styles.top}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
-          <Ionicons name="chevron-back" size={24} color={C.ink} />
-        </Pressable>
-        <Text style={styles.topLabel}>ONB</Text>
-        <View style={styles.topSpacer} />
-        <Text style={[styles.topLabel, { color: C.inkDim }]}>Version 1.0</Text>
-      </View>
+    <SafeAreaView style={styles.root}>
+      {/* Back button */}
+      <Pressable style={styles.backBtn} onPress={() => router.back()} hitSlop={16}>
+        <Ionicons name="chevron-back" size={28} color={COLORS.text} />
+      </Pressable>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.center}
+        style={styles.container}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.card}>
-            <Text style={styles.title}>Set up your profile</Text>
-            <Text style={styles.sub}>
-              Tell us about yourself. You can always change this later.
-            </Text>
+          <View style={styles.content}>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.title}>Set up your profile</Text>
+              <Text style={styles.sub}>
+                Tell us about yourself. You can always change this later.
+              </Text>
+            </View>
 
             {/* Profile Photo */}
             <View style={styles.photoSection}>
@@ -205,22 +194,18 @@ export default function ProfileSetupScreen() {
                 )}
                 {(isPickingImage || isLoading) && (
                   <View style={styles.photoLoading}>
-                    <ActivityIndicator size="large" color={C.ink} />
+                    <ActivityIndicator size="large" color={COLORS.accent} />
                   </View>
                 )}
                 <View style={styles.photoEditBadge}>
-                  <Ionicons name="camera" size={14} color={C.bg} />
+                  <Ionicons name="camera" size={14} color={COLORS.bg} />
                 </View>
               </TouchableOpacity>
-              <Text style={styles.photoHint}>Tap to add or change photo</Text>
             </View>
 
             {/* Name Field */}
             <View style={styles.fieldGroup}>
-              <View style={styles.labelRow}>
-                <Text style={styles.label}>Full Name</Text>
-                <Text style={styles.required}>required</Text>
-              </View>
+              <Text style={styles.label}>FULL NAME</Text>
               <View style={[
                 styles.inputWrap,
                 !isNameValid && name.length > 0 && styles.inputError
@@ -229,7 +214,7 @@ export default function ProfileSetupScreen() {
                   style={styles.input}
                   value={name}
                   placeholder="Enter your full name"
-                  placeholderTextColor={C.inkDim}
+                  placeholderTextColor={COLORS.textDim}
                   autoCapitalize="words"
                   autoComplete="name"
                   returnKeyType="next"
@@ -242,7 +227,7 @@ export default function ProfileSetupScreen() {
               )}
               {isNameValid && name.length > 0 && (
                 <View style={styles.successContainer}>
-                  <Ionicons name="checkmark-circle" size={14} color={C.success} />
+                  <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
                   <Text style={styles.successText}>Looks good</Text>
                 </View>
               )}
@@ -250,13 +235,13 @@ export default function ProfileSetupScreen() {
 
             {/* About Field */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>About</Text>
+              <Text style={styles.label}>ABOUT</Text>
               <View style={styles.inputWrap}>
                 <TextInput
                   style={[styles.input, styles.aboutInput]}
                   value={about}
                   placeholder="What's on your mind?"
-                  placeholderTextColor={C.inkDim}
+                  placeholderTextColor={COLORS.textDim}
                   autoCapitalize="sentences"
                   returnKeyType="done"
                   editable={!isLoading}
@@ -277,7 +262,7 @@ export default function ProfileSetupScreen() {
               onPress={handleContinue}
             >
               <Text style={styles.btnText}>
-                {isLoading ? 'Setting up…' : 'Continue'}
+                {isLoading ? 'Setting up…' : 'CONTINUE'}
               </Text>
             </Pressable>
 
@@ -288,7 +273,7 @@ export default function ProfileSetupScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Photo Options Modal */}
+      {/* Photo Options Modal (unchanged) */}
       <Modal
         visible={showPhotoModal}
         transparent
@@ -311,13 +296,13 @@ export default function ProfileSetupScreen() {
                 activeOpacity={0.6}
               >
                 <View style={[styles.modalIconContainer, styles.cameraIcon]}>
-                  <Ionicons name="camera" size={28} color={C.ink} />
+                  <Ionicons name="camera" size={28} color={COLORS.accent} />
                 </View>
                 <View style={styles.modalOptionText}>
                   <Text style={styles.modalOptionTitle}>Take Photo</Text>
                   <Text style={styles.modalOptionDesc}>Capture using camera</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color={C.inkDim} />
+                <Ionicons name="chevron-forward" size={20} color={COLORS.textDim} />
               </TouchableOpacity>
 
               <TouchableOpacity 
@@ -326,13 +311,13 @@ export default function ProfileSetupScreen() {
                 activeOpacity={0.6}
               >
                 <View style={[styles.modalIconContainer, styles.galleryIcon]}>
-                  <Ionicons name="images" size={28} color={C.ink} />
+                  <Ionicons name="images" size={28} color={COLORS.accent} />
                 </View>
                 <View style={styles.modalOptionText}>
                   <Text style={styles.modalOptionTitle}>Choose from Gallery</Text>
                   <Text style={styles.modalOptionDesc}>Select from photos</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color={C.inkDim} />
+                <Ionicons name="chevron-forward" size={20} color={COLORS.textDim} />
               </TouchableOpacity>
 
               {photo && (
@@ -342,7 +327,7 @@ export default function ProfileSetupScreen() {
                   activeOpacity={0.6}
                 >
                   <View style={[styles.modalIconContainer, styles.removeIcon]}>
-                    <Ionicons name="trash-outline" size={24} color={C.fail} />
+                    <Ionicons name="trash-outline" size={24} color={COLORS.error} />
                   </View>
                   <View style={styles.modalOptionText}>
                     <Text style={[styles.modalOptionTitle, styles.removeText]}>
@@ -364,96 +349,80 @@ export default function ProfileSetupScreen() {
           </View>
         </SafeAreaView>
       </Modal>
-    </LinearGradient>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-  },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingTop: Platform.OS === 'ios' ? 56 : 32,
-    paddingHorizontal: 28,
+    backgroundColor: COLORS.bg,
   },
   backBtn: {
-    padding: 4,
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 12 : 16,
+    left: 16,
+    zIndex: 10,
+    padding: 8,
   },
-  topSpacer: {
+  container: {
     flex: 1,
-  },
-  topLabel: {
-    fontSize: 11,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    color: C.ink,
-    fontFamily: 'SpaceGrotesk-Medium',
-  },
-  center: {
-    flex: 1,
-    paddingHorizontal: 24,
   },
   scrollContent: {
     flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === 'ios' ? 70 : 50,
+    paddingBottom: 40,
     justifyContent: 'center',
-    paddingVertical: 12,
   },
-  card: {
+  content: {
     width: '100%',
     maxWidth: 400,
     alignSelf: 'center',
-    backgroundColor: C.bg2,
-    borderWidth: 1,
-    borderColor: C.borderSoft,
-    borderRadius: 20,
-    padding: 28,
+  },
+  header: {
+    marginBottom: 32,
   },
   title: {
-    color: C.ink,
-    fontSize: 28,
-    lineHeight: 32,
-    marginBottom: 12,
-    fontFamily: 'Fraunces-Black',
+    color: COLORS.text,
+    fontSize: 34,
+    fontWeight: '700',
+    marginBottom: 8,
   },
   sub: {
-    color: C.inkDim,
-    fontSize: 14,
-    lineHeight: 21,
-    marginBottom: 28,
-    fontFamily: 'SpaceGrotesk-Regular',
+    color: COLORS.textDim,
+    fontSize: 16,
+    lineHeight: 22,
   },
   photoSection: {
     alignItems: 'center',
-    marginBottom: 28,
+    marginBottom: 32,
   },
   photoContainer: {
     position: 'relative',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   photo: {
     width: 100,
     height: 100,
     borderRadius: 50,
     borderWidth: 2,
-    borderColor: C.ring,
+    borderColor: COLORS.accent,
   },
   photoPlaceholder: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: C.bg,
+    backgroundColor: COLORS.inputBg,
     borderWidth: 2,
-    borderColor: C.borderSoft,
+    borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   photoInitials: {
     fontSize: 32,
-    color: C.ink,
-    fontFamily: 'Fraunces-Black',
+    color: COLORS.text,
+    fontWeight: '600',
   },
   photoLoading: {
     position: 'absolute',
@@ -470,59 +439,40 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: C.ink,
+    backgroundColor: COLORS.accent,
     borderRadius: 16,
     width: 32,
     height: 32,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: C.bg2,
-  },
-  photoHint: {
-    color: C.inkDim,
-    fontSize: 12,
-    fontFamily: 'SpaceGrotesk-Regular',
+    borderColor: COLORS.bg,
   },
   fieldGroup: {
-    marginBottom: 20,
-  },
-  labelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: 24,
   },
   label: {
-    color: C.accent,
-    fontSize: 11,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    fontFamily: 'SpaceGrotesk-Medium',
-  },
-  required: {
-    color: C.ink,
-    fontSize: 10,
+    color: COLORS.textDim,
+    fontSize: 12,
     letterSpacing: 1,
-    textTransform: 'uppercase',
-    fontFamily: 'SpaceGrotesk-Regular',
+    fontWeight: '500',
+    marginBottom: 8,
   },
   inputWrap: {
-    borderWidth: 1.5,
-    borderColor: C.borderSoft,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     borderRadius: 12,
-    backgroundColor: C.bg,
+    backgroundColor: COLORS.inputBg,
     overflow: 'hidden',
   },
   inputError: {
-    borderColor: C.fail,
+    borderColor: COLORS.error,
   },
   input: {
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    color: C.text,
-    fontSize: 15,
-    fontFamily: 'SpaceGrotesk-Regular',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    color: COLORS.text,
+    fontSize: 16,
     minHeight: 48,
   },
   aboutInput: {
@@ -530,10 +480,9 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   errorText: {
-    color: C.fail,
-    fontSize: 11.5,
+    color: COLORS.error,
+    fontSize: 12,
     marginTop: 4,
-    fontFamily: 'SpaceGrotesk-Regular',
   },
   successContainer: {
     flexDirection: 'row',
@@ -542,50 +491,46 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   successText: {
-    color: C.success,
-    fontSize: 11.5,
-    fontFamily: 'SpaceGrotesk-Regular',
+    color: COLORS.success,
+    fontSize: 12,
+    fontWeight: '500',
   },
   charCount: {
-    color: C.inkDim,
-    fontSize: 10,
+    color: COLORS.textDim,
+    fontSize: 11,
     textAlign: 'right',
     marginTop: 4,
-    fontFamily: 'SpaceGrotesk-Regular',
   },
   btn: {
-    backgroundColor: C.ink,
+    backgroundColor: COLORS.accent,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 8,
   },
   btnDisabled: {
-    opacity: 0.35,
+    opacity: 0.5,
   },
   btnText: {
-    color: C.bg,
-    fontWeight: '600',
-    fontSize: 14,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    fontFamily: 'SpaceGrotesk-Medium',
+    color: COLORS.bg,
+    fontWeight: '700',
+    fontSize: 15,
+    letterSpacing: 1,
   },
   phoneNote: {
-    color: C.inkDim,
-    fontSize: 10,
+    color: COLORS.textDim,
+    fontSize: 12,
     textAlign: 'center',
-    marginTop: 14,
-    fontFamily: 'SpaceGrotesk-Regular',
+    marginTop: 16,
   },
-  // Modal Styles
+  // Modal styles (unchanged, only updated colors)
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: C.bg2,
+    backgroundColor: COLORS.inputBg,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 24,
@@ -595,24 +540,22 @@ const styles = StyleSheet.create({
   modalHandle: {
     width: 36,
     height: 4,
-    backgroundColor: C.borderSoft,
+    backgroundColor: COLORS.border,
     borderRadius: 2,
     alignSelf: 'center',
     marginBottom: 20,
   },
   modalTitle: {
-    color: C.text,
+    color: COLORS.text,
     fontSize: 20,
     fontWeight: '600',
     textAlign: 'center',
-    fontFamily: 'Fraunces-Black',
     marginBottom: 4,
   },
   modalSubtitle: {
-    color: C.inkDim,
+    color: COLORS.textDim,
     fontSize: 14,
     textAlign: 'center',
-    fontFamily: 'SpaceGrotesk-Regular',
     marginBottom: 24,
   },
   modalOptions: {
@@ -624,10 +567,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
     paddingHorizontal: 16,
-    backgroundColor: C.bg,
+    backgroundColor: COLORS.bg,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: C.borderSoft,
+    borderColor: COLORS.border,
   },
   modalIconContainer: {
     width: 48,
@@ -638,47 +581,44 @@ const styles = StyleSheet.create({
     marginRight: 14,
   },
   cameraIcon: {
-    backgroundColor: 'rgba(63, 198, 184, 0.15)',
+    backgroundColor: COLORS.accentDim,
   },
   galleryIcon: {
-    backgroundColor: 'rgba(107, 207, 127, 0.15)',
+    backgroundColor: COLORS.accentDim,
   },
   removeIcon: {
-    backgroundColor: 'rgba(229, 72, 77, 0.15)',
+    backgroundColor: 'rgba(255,59,48,0.15)',
   },
   modalOptionText: {
     flex: 1,
   },
   modalOptionTitle: {
-    color: C.text,
+    color: COLORS.text,
     fontSize: 15,
     fontWeight: '500',
-    fontFamily: 'SpaceGrotesk-Medium',
   },
   modalOptionDesc: {
-    color: C.inkDim,
+    color: COLORS.textDim,
     fontSize: 12,
-    fontFamily: 'SpaceGrotesk-Regular',
     marginTop: 1,
   },
   removeOption: {
-    borderColor: 'rgba(229, 72, 77, 0.3)',
+    borderColor: 'rgba(255,59,48,0.3)',
   },
   removeText: {
-    color: C.fail,
+    color: COLORS.error,
   },
   modalCancel: {
     paddingVertical: 16,
     alignItems: 'center',
     borderRadius: 14,
-    backgroundColor: C.bg,
+    backgroundColor: COLORS.bg,
     borderWidth: 1,
-    borderColor: C.borderSoft,
+    borderColor: COLORS.border,
   },
   modalCancelText: {
-    color: C.inkDim,
+    color: COLORS.textDim,
     fontSize: 16,
     fontWeight: '500',
-    fontFamily: 'SpaceGrotesk-Medium',
   },
 });
