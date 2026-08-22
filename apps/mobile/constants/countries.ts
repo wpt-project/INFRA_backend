@@ -7,6 +7,21 @@ export type Country = {
   format: number[] | null;
 };
 
+export const Colors = {
+  light: {
+    text: '#11181C',
+    background: '#ffffff',
+    tint: '#0a7ea4',
+    icon: '#687076',
+  },
+  dark: {
+    text: '#ECEDEE',
+    background: '#151718',
+    tint: '#ffffff',
+    icon: '#9BA1A6',
+  },
+} as const;
+
 export const COUNTRIES: Country[] = [
   { name: "Afghanistan", iso: "AF", dial: "+93", flag: "🇦🇫", lengths: [9], format: [3, 3, 3] },
   { name: "Albania", iso: "AL", dial: "+355", flag: "🇦🇱", lengths: [8, 9], format: null },

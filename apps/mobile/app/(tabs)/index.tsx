@@ -12,12 +12,14 @@ import {
   Platform,
   Modal,
   Alert,
-  Animated,
   Keyboard,
+  ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useKeyboardHeight } from '@/hooks/use-keyboard-height';
+import * as Contacts from 'expo-contacts';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -42,80 +44,30 @@ const FONTS = {
   bodyMedium: 'Inter-Medium',
 };
 
-// ─── Sample Data ─────────────────────────────────────────────────────────────
+// ─── Types ──────────────────────────────────────────────────────────────────
 
-const CHATS = [
-  {
-    id: '1',
-    name: 'Jenslin',
-    lastMessage: 'Hey! How are you doing?',
-    time: '12:30 PM',
-    unread: 2,
-    online: true,
-    avatar: null,
-    initials: 'AJ',
-  },
-  {
-    id: '2',
-    name: 'Mervin',
-    lastMessage: 'See you tomorrow at 3pm',
-    time: '11:15 AM',
-    unread: 0,
-    online: false,
-    avatar: null,
-    initials: 'BS',
-  },
-  {
-    id: '3',
-    name: 'Praven',
-    lastMessage: 'Can you send me the files?',
-    time: 'Yesterday',
-    unread: 5,
-    online: true,
-    avatar: null,
-    initials: 'CW',
-  },
-  {
-    id: '4',
-    name: 'Rajesh',
-    lastMessage: 'Thanks for your help!',
-    time: 'Yesterday',
-    unread: 0,
-    online: false,
-    avatar: null,
-    initials: 'DB',
-  },
-  {
-    id: '5',
-    name: 'Sathish',
-    lastMessage: "I'll be there in 10 minutes",
-    time: '2 days ago',
-    unread: 0,
-    online: true,
-    avatar: null,
-    initials: 'EM',
-  },
-  {
-    id: '6',
-    name: 'Krisha',
-    lastMessage: 'Great meeting you today',
-    time: '3 days ago',
-    unread: 1,
-    online: false,
-    avatar: null,
-    initials: 'FW',
-  },
-];
+interface Message {
+  id: string;
+  text: string;
+  sent: boolean;
+  time: string;
+}
 
-// Generate more realistic message history per chat
-const getMessagesForChat = (chatName: string) => [
-  { id: 'm1', text: `Hi ${chatName}!`, sent: false, time: '10:00 AM' },
-  { id: 'm2', text: `Hey there! How's it going?`, sent: true, time: '10:05 AM' },
-  { id: 'm3', text: `I'm good, thanks for asking!`, sent: false, time: '10:06 AM' },
-  { id: 'm4', text: `Let's catch up soon.`, sent: true, time: '10:10 AM' },
-  { id: 'm5', text: `Sure, what time works for you?`, sent: false, time: '10:12 AM' },
-  { id: 'm6', text: `How about 4pm?`, sent: true, time: '10:15 AM' },
-];
+interface Contact {
+  id: string;
+  name: string;
+  phone: string;
+  initials: string;
+  avatar: string | null;
+}
+
+interface Chat {
+  id: string;                // unique chat ID (could be contact id)
+  contact: Contact;
+  messages: Message[];
+  lastMessage?: string;
+  lastMessageTime?: string;
+}
 
 // ─── Sub‑components ──────────────────────────────────────────────────────
 
@@ -140,79 +92,183 @@ const Header = ({
   </View>
 );
 
-// Chat Item
+// Chat Item – shows a chat conversation
 const ChatItem = ({
-  item,
+  chat,
   onPress,
 }: {
-  item: typeof CHATS[0];
+  chat: Chat;
   onPress: () => void;
 }) => (
   <TouchableOpacity style={styles.chatItem} activeOpacity={0.7} onPress={onPress}>
     <View style={styles.avatarContainer}>
-      {item.avatar ? (
-        <Image source={{ uri: item.avatar }} style={styles.avatar} />
+      {chat.contact.avatar ? (
+        <Image source={{ uri: chat.contact.avatar }} style={styles.avatar} />
       ) : (
         <View style={styles.avatarPlaceholder}>
-          <Text style={styles.avatarText}>{item.initials}</Text>
+          <Text style={styles.avatarText}>{chat.contact.initials}</Text>
         </View>
       )}
-      {item.online && <View style={styles.onlineDot} />}
     </View>
     <View style={styles.chatInfo}>
       <View style={styles.chatTop}>
         <Text style={styles.chatName} numberOfLines={1}>
-          {item.name}
+          {chat.contact.name}
         </Text>
-        <Text style={styles.chatTime}>{item.time}</Text>
+        <Text style={styles.chatTime}>
+          {chat.lastMessageTime || ''}
+        </Text>
       </View>
       <View style={styles.chatBottom}>
         <Text style={styles.chatMessage} numberOfLines={1}>
-          {item.lastMessage}
+          {chat.lastMessage || 'No messages yet'}
         </Text>
-        {item.unread > 0 && (
-          <View style={styles.unreadBadge}>
-            <Text style={styles.unreadText}>{item.unread}</Text>
-          </View>
-        )}
       </View>
     </View>
   </TouchableOpacity>
 );
 
-// Empty State
-const EmptyState = ({ onNewChat }: { onNewChat: () => void }) => (
+// Empty State for the chat list
+const EmptyState = () => (
   <View style={styles.emptyContainer}>
     <View style={styles.emptyIconContainer}>
       <Ionicons name="chatbubbles-outline" size={56} color={COLORS.textDim} />
     </View>
-    <Text style={styles.emptyTitle}>No messages yet</Text>
+    <Text style={styles.emptyTitle}>No chats yet</Text>
     <Text style={styles.emptySubtitle}>
-      Start a conversation by finding someone to chat with
+      Tap the + button below to start a new conversation.
     </Text>
-    <TouchableOpacity style={styles.emptyButton} onPress={onNewChat}>
-      <Text style={styles.emptyButtonText}>New Conversation</Text>
-    </TouchableOpacity>
   </View>
 );
 
-// ─── Chat View (with keyboard‑friendly input) ─────────────────────────────
+// Contact picker modal
+const ContactPickerModal = ({
+  visible,
+  onClose,
+  onSelectContact,
+  loading,
+  contacts,
+  permissionDenied,
+  onRequestPermission,
+  onOpenSettings,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onSelectContact: (contact: Contact) => void;
+  loading: boolean;
+  contacts: Contact[];
+  permissionDenied: boolean;
+  onRequestPermission: () => void;
+  onOpenSettings: () => void;
+}) => {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredContacts = contacts.filter((c) =>
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.phone.includes(searchQuery)
+  );
+
+  const renderContact = ({ item }: { item: Contact }) => (
+    <TouchableOpacity
+      style={styles.contactItem}
+      onPress={() => {
+        onSelectContact(item);
+        onClose();
+      }}
+    >
+      <View style={styles.avatarContainer}>
+        {item.avatar ? (
+          <Image source={{ uri: item.avatar }} style={styles.avatar} />
+        ) : (
+          <View style={styles.avatarPlaceholder}>
+            <Text style={styles.avatarText}>{item.initials}</Text>
+          </View>
+        )}
+      </View>
+      <View style={styles.contactInfo}>
+        <Text style={styles.contactName}>{item.name}</Text>
+        <Text style={styles.contactPhone}>{item.phone}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      onRequestClose={onClose}
+      transparent={false}
+    >
+      <SafeAreaView style={styles.modalContainer}>
+        <View style={styles.modalHeader}>
+          <TouchableOpacity onPress={onClose} style={styles.modalBackButton}>
+            <Ionicons name="close" size={28} color={COLORS.text} />
+          </TouchableOpacity>
+          <Text style={styles.modalTitle}>Select contact</Text>
+          <View style={{ width: 28 }} />
+        </View>
+
+        {permissionDenied ? (
+          <View style={styles.modalEmpty}>
+            <Ionicons name="lock-closed-outline" size={48} color={COLORS.textDim} />
+            <Text style={styles.modalEmptyText}>Permission denied</Text>
+            <TouchableOpacity style={styles.emptyButton} onPress={onOpenSettings}>
+              <Text style={styles.emptyButtonText}>Open Settings</Text>
+            </TouchableOpacity>
+          </View>
+        ) : loading ? (
+          <View style={styles.modalEmpty}>
+            <ActivityIndicator size="large" color={COLORS.accent} />
+            <Text style={styles.modalEmptyText}>Loading contacts...</Text>
+          </View>
+        ) : (
+          <>
+            <View style={styles.searchContainer}>
+              <View style={styles.searchInputContainer}>
+                <Ionicons name="search" size={20} color={COLORS.textDim} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search contacts..."
+                  placeholderTextColor={COLORS.textDim}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+              </View>
+            </View>
+            <FlatList
+              data={filteredContacts}
+              keyExtractor={(item) => item.id}
+              renderItem={renderContact}
+              contentContainerStyle={styles.modalList}
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={
+                <Text style={styles.modalEmptyText}>No contacts found</Text>
+              }
+            />
+          </>
+        )}
+      </SafeAreaView>
+    </Modal>
+  );
+};
+
+// ─── Chat View (unchanged from previous version) ───────────────────────────
 
 const ChatView = ({
   chat,
   onBack,
+  setChatMessages,
 }: {
-  chat: typeof CHATS[0];
+  chat: Chat;
   onBack: () => void;
+  setChatMessages: (chatId: string, messages: Message[]) => void;
 }) => {
-  const [messages, setMessages] = useState(getMessagesForChat(chat.name));
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const flatListRef = useRef<FlatList>(null);
-  const typingTimeout = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const keyboardHeight = useKeyboardHeight();
 
-  // Scroll to bottom on new message or keyboard open
   const scrollToBottom = () => {
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
@@ -221,7 +277,7 @@ const ChatView = ({
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [chat.messages]);
 
   useEffect(() => {
     const keyboardDidShow = Keyboard.addListener('keyboardDidShow', scrollToBottom);
@@ -230,16 +286,17 @@ const ChatView = ({
 
   const sendMessage = () => {
     if (!inputText.trim()) return;
-    const newMsg = {
+    const newMsg: Message = {
       id: `m${Date.now()}`,
       text: inputText.trim(),
       sent: true,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
-    setMessages((prev) => [...prev, newMsg]);
+    const updatedMessages = [...chat.messages, newMsg];
+    setChatMessages(chat.id, updatedMessages);
     setInputText('');
 
-    // Simulate "typing" indicator
+    // Simulate reply
     setIsTyping(true);
     if (typingTimeout.current) clearTimeout(typingTimeout.current);
     typingTimeout.current = setTimeout(() => {
@@ -254,17 +311,18 @@ const ChatView = ({
         "I'll get back to you.",
         'Awesome!',
       ];
-      const reply = {
+      const reply: Message = {
         id: `m${Date.now() + 1}`,
         text: replies[Math.floor(Math.random() * replies.length)],
         sent: false,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
-      setMessages((prev) => [...prev, reply]);
+      const newMessages = [...updatedMessages, reply];
+      setChatMessages(chat.id, newMessages);
     }, 1000 + Math.random() * 1500);
   };
 
-  const renderMessage = ({ item }: { item: typeof messages[0] }) => (
+  const renderMessage = ({ item }: { item: Message }) => (
     <View
       style={[
         styles.messageRow,
@@ -295,44 +353,37 @@ const ChatView = ({
     </View>
   );
 
-  // Dynamic bottom padding for input bar
   const inputBarPaddingBottom = keyboardHeight > 0 ? keyboardHeight + 12 : 12;
 
   return (
     <View style={styles.chatView}>
-      {/* Header */}
       <View style={styles.chatHeader}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <Ionicons name="chevron-back" size={28} color={COLORS.text} />
         </TouchableOpacity>
         <View style={styles.chatHeaderInfo}>
-          <Text style={styles.chatHeaderName}>{chat.name}</Text>
-          <Text style={styles.chatHeaderStatus}>
-            {chat.online ? 'Online' : 'Offline'}
-          </Text>
+          <Text style={styles.chatHeaderName}>{chat.contact.name}</Text>
+          <Text style={styles.chatHeaderStatus}>{chat.contact.phone}</Text>
         </View>
         <TouchableOpacity style={styles.chatHeaderIcon}>
           <Ionicons name="ellipsis-vertical" size={24} color={COLORS.text} />
         </TouchableOpacity>
       </View>
 
-      {/* Messages + Input */}
       <View style={styles.chatBody}>
         <FlatList
           ref={flatListRef}
-          data={messages}
+          data={chat.messages}
           keyExtractor={(item) => item.id}
           renderItem={renderMessage}
           contentContainerStyle={[
             styles.messagesList,
-            // Add bottom padding to keep messages above input
             { paddingBottom: 80 + keyboardHeight },
           ]}
           ListFooterComponent={isTyping ? renderTypingIndicator : null}
           showsVerticalScrollIndicator={false}
         />
 
-        {/* Input bar – stays above keyboard with dynamic padding */}
         <View style={[styles.inputBar, { paddingBottom: inputBarPaddingBottom }]}>
           <TouchableOpacity style={styles.attachButton}>
             <Ionicons name="attach" size={24} color={COLORS.textDim} />
@@ -361,20 +412,150 @@ const ChatView = ({
 export default function ChatListScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
-  const [selectedChat, setSelectedChat] = useState<typeof CHATS[0] | null>(null);
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
 
-  const filteredChats = CHATS.filter((chat) =>
-    chat.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Chats state
+  const [chats, setChats] = useState<Chat[]>([]);
+
+  // Brand-new chat (not yet in the chats list until the first message is sent)
+  const [draftChat, setDraftChat] = useState<Chat | null>(null);
+
+  // Contact picker state
+  const [showContactPicker, setShowContactPicker] = useState(false);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [permissionDenied, setPermissionDenied] = useState(false);
+
+  // ─── Helper: update messages for a chat ──────────────────────────────
+
+  const setChatMessages = (chatId: string, messages: Message[]) => {
+    const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
+    const stamp = {
+      lastMessage: lastMsg ? lastMsg.text : '',
+      lastMessageTime: lastMsg ? lastMsg.time : '',
+    };
+
+    // Once a message exists the chat belongs to the persistent list
+    setDraftChat((prev) => (prev && prev.id === chatId ? null : prev));
+
+    setChats((prev) => {
+      if (prev.some((c) => c.id === chatId)) {
+        // Existing conversation → update in place
+        return prev.map((c) => (c.id === chatId ? { ...c, messages, ...stamp } : c));
+      }
+      // First message of a new chat → promote it into the list
+      if (!draftChat || draftChat.id !== chatId) return prev;
+      return [...prev, { ...draftChat, messages, ...stamp }];
+    });
+  };
+
+  // ─── Load contacts for picker ──────────────────────────────────────────
+
+  const loadContactsForPicker = async () => {
+    setLoadingContacts(true);
+    setPermissionDenied(false);
+    try {
+      const { status } = await Contacts.requestPermissionsAsync();
+      if (status !== 'granted') {
+        setPermissionDenied(true);
+        setLoadingContacts(false);
+        return;
+      }
+
+      const { data } = await Contacts.getContactsAsync({
+        fields: [Contacts.Fields.Name, Contacts.Fields.PhoneNumbers, Contacts.Fields.Image],
+      });
+
+      const contactList: Contact[] = data
+        .filter((c) => c.phoneNumbers && c.phoneNumbers.length > 0)
+        .map((c) => {
+          const name = c.name || 'Unknown';
+          const phone = c.phoneNumbers?.[0]?.number || '';
+          const initials = name
+            .split(' ')
+            .map((n) => n[0])
+            .join('')
+            .toUpperCase()
+            .slice(0, 2);
+          return {
+            id: c.id || `contact-${Date.now()}`,
+            name,
+            phone,
+            initials,
+            avatar: c.image?.uri || null,
+          };
+        });
+
+      setContacts(contactList);
+    } catch (error) {
+      console.error('Failed to load contacts', error);
+      Alert.alert('Error', 'Could not load contacts.');
+    } finally {
+      setLoadingContacts(false);
+    }
+  };
+
+  // ─── Open contact picker ───────────────────────────────────────────────
+
+  const openContactPicker = async () => {
+    setShowContactPicker(true);
+    await loadContactsForPicker();
+  };
+
+  // ─── Select a contact → route to new chat or existing conversation ────
+
+  const selectContact = (contact: Contact) => {
+    setShowContactPicker(false);
+
+    const phoneDigits = contact.phone.replace(/\D/g, '');
+    const existingChat = chats.find(
+      (c) =>
+        c.contact.id === contact.id ||
+        c.contact.phone.replace(/\D/g, '') === phoneDigits
+    );
+
+    if (existingChat) {
+      // Contact already exists in the data store → open its full history
+      setDraftChat(null);
+      setSelectedChatId(existingChat.id);
+      return;
+    }
+
+    // New contact → open only the fresh chat view
+    if (
+      draftChat &&
+      draftChat.contact.phone.replace(/\D/g, '') === phoneDigits
+    ) {
+      setSelectedChatId(draftChat.id);
+      return;
+    }
+
+    const newChat: Chat = {
+      id: `chat-${Date.now()}`,
+      contact,
+      messages: [],
+    };
+    setDraftChat(newChat);
+    setSelectedChatId(newChat.id);
+  };
+
+  // ─── Handlers ───────────────────────────────────────────────────────────
 
   const toggleSearch = () => {
     setShowSearch(!showSearch);
     if (showSearch) setSearchQuery('');
   };
 
-  const handleChatPress = (chat: typeof CHATS[0]) => setSelectedChat(chat);
-  const handleBackFromChat = () => setSelectedChat(null);
+  const handleChatPress = (chatId: string) => {
+    setSelectedChatId(chatId);
+  };
+
+  const handleBackFromChat = () => {
+    setSelectedChatId(null);
+    // Discard any new chat that never received a message
+    setDraftChat(null);
+  };
 
   const handleMenuPress = () => setShowMenu(true);
   const handleMenuOption = (option: string) => {
@@ -382,9 +563,18 @@ export default function ChatListScreen() {
     Alert.alert(option, `You selected "${option}"`);
   };
 
-  const handleNewChat = () => {
-    Alert.alert('New Conversation', 'This would open a contact picker.');
-  };
+  const filteredChats = chats.filter((c) =>
+    c.contact.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // ─── Active chat (persistent list first, then a brand-new draft) ──────
+
+  const selectedChat =
+    chats.find((c) => c.id === selectedChatId) ||
+    (draftChat && draftChat.id === selectedChatId ? draftChat : null) ||
+    null;
+
+  // ─── Render ─────────────────────────────────────────────────────────────
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -420,22 +610,43 @@ export default function ChatListScreen() {
             data={filteredChats}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <ChatItem item={item} onPress={() => handleChatPress(item)} />
+              <ChatItem chat={item} onPress={() => handleChatPress(item.id)} />
             )}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
           />
         ) : (
-          <EmptyState onNewChat={handleNewChat} />
+          <EmptyState />
         )}
+
+        {/* FAB */}
+        <TouchableOpacity style={styles.fab} onPress={openContactPicker}>
+          <Ionicons name="add" size={28} color="#fff" />
+        </TouchableOpacity>
       </View>
 
       {/* Chat overlay */}
       {selectedChat && (
         <View style={StyleSheet.absoluteFillObject}>
-          <ChatView chat={selectedChat} onBack={handleBackFromChat} />
+          <ChatView
+            chat={selectedChat}
+            onBack={handleBackFromChat}
+            setChatMessages={setChatMessages}
+          />
         </View>
       )}
+
+      {/* Contact Picker Modal */}
+      <ContactPickerModal
+        visible={showContactPicker}
+        onClose={() => setShowContactPicker(false)}
+        onSelectContact={selectContact}
+        loading={loadingContacts}
+        contacts={contacts}
+        permissionDenied={permissionDenied}
+        onRequestPermission={loadContactsForPicker}
+        onOpenSettings={() => Linking.openSettings()}
+      />
 
       {/* Menu Modal */}
       <Modal
@@ -479,7 +690,7 @@ export default function ChatListScreen() {
 }
 
 // ─── Styles ─────────────────────────────────────────────────────────────────
-
+// (Mostly the same as before, but we add FAB and contact modal styles)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -538,7 +749,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingTop: 8,
-    paddingBottom: 20,
+    paddingBottom: 80, // space for FAB
   },
   chatItem: {
     flexDirection: 'row',
@@ -572,17 +783,6 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontFamily: FONTS.bodyMedium,
   },
-  onlineDot: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: COLORS.success,
-    borderWidth: 2,
-    borderColor: COLORS.bg,
-  },
   chatInfo: {
     flex: 1,
   },
@@ -615,26 +815,12 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.body,
     marginRight: 12,
   },
-  unreadBadge: {
-    backgroundColor: COLORS.accent,
-    borderRadius: 12,
-    minWidth: 22,
-    height: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 6,
-  },
-  unreadText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.bg,
-    fontFamily: FONTS.bodyMedium,
-  },
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 40,
+    paddingBottom: 80, // account for FAB
   },
   emptyIconContainer: {
     width: 100,
@@ -673,8 +859,85 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: FONTS.bodyMedium,
   },
-
-  // ─── Chat View Styles ─────────────────────────────────────────────
+  // FAB
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
+  // Contact picker modal
+  modalContainer: {
+    flex: 1,
+    backgroundColor: COLORS.bg,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  modalBackButton: {
+    padding: 4,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.text,
+    fontFamily: FONTS.bodyMedium,
+  },
+  modalList: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  contactInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  contactName: {
+    fontSize: 16,
+    color: COLORS.text,
+    fontFamily: FONTS.bodyMedium,
+  },
+  contactPhone: {
+    fontSize: 13,
+    color: COLORS.textDim,
+    fontFamily: FONTS.body,
+  },
+  modalEmpty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+  },
+  modalEmptyText: {
+    fontSize: 16,
+    color: COLORS.textDim,
+    marginTop: 12,
+    fontFamily: FONTS.body,
+    textAlign: 'center',
+  },
+  // Chat view styles (unchanged)
   chatView: {
     flex: 1,
     backgroundColor: COLORS.bg,
@@ -790,7 +1053,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg2,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
-    paddingBottom: 12, // will be overwritten by dynamic padding
+    paddingBottom: 12,
   },
   attachButton: {
     marginRight: 12,
@@ -815,7 +1078,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Menu
   menuOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

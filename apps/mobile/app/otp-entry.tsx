@@ -106,18 +106,10 @@ export default function OtpEntryScreen() {
 
   // --- Device info helpers ---
   const getDeviceId = (): string => {
-    // Use Expo Device's ID if available, else fallback to a random persistent ID
-    try {
-      // @ts-ignore – Device.deviceId may be undefined if not installed
-      if (Device && Device.deviceId) return Device.deviceId;
-    } catch {}
     return `device_${Math.random().toString(36).slice(2, 10)}`;
   };
 
   const getDeviceName = (): string => {
-    try {
-      if (Device && Device.deviceName) return Device.deviceName;
-    } catch {}
     return Platform.OS === 'ios' ? 'iPhone' : 'Android Device';
   };
 
