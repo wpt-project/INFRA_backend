@@ -1,6 +1,6 @@
 // app/OnboardingScreen.tsx
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,10 @@ import {
   Pressable,
   Animated,
   Easing,
-  Dimensions,
-  GestureResponderEvent,
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 const RING_ENABLED = false;
 
@@ -30,20 +26,10 @@ const COLORS = {
   ringSoft: 'rgba(63,198,184,0.12)',
 };
 
-interface RippleData {
-  id: number;
-  x: number;
-  y: number;
-  size: number;
-  progress: Animated.Value;
-}
-
 export default function OnboardingScreen() {
   const router = useRouter();
-  const [ripples, setRipples] = useState<RippleData[]>([]);
-  const rippleId = useRef(0);
 
-  // breathing halo/ring animation
+  // breathing halo/ring animation (disabled via RING_ENABLED)
   const breathe = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -68,30 +54,11 @@ export default function OnboardingScreen() {
     return () => loop.stop();
   }, [breathe]);
 
-  const handlePress = useCallback(
-    (e: GestureResponderEvent) => {
-      const { locationX, locationY } = e.nativeEvent;
-      const size = Math.max(SCREEN_W, SCREEN_H) * 1.4;
-      const progress = new Animated.Value(0);
-      const id = rippleId.current++;
-
-      setRipples((prev) => [...prev, { id, x: locationX, y: locationY, size, progress }]);
-
-      Animated.timing(progress, {
-        toValue: 1,
-        duration: 900,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }).start(() => {
-        setRipples((prev) => prev.filter((r) => r.id !== id));
-      });
-
-      setTimeout(() => {
-        router.replace('/phone-entry');
-      }, 250);
-    },
-    [router]
-  );
+  const handlePress = useCallback(() => {
+    setTimeout(() => {
+      router.push('/legal-acceptance');
+    }, 250);
+  }, [router]);
 
   const haloScale = breathe.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.06] });
   const haloOpacity = breathe.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] });
@@ -132,7 +99,7 @@ export default function OnboardingScreen() {
         )}
         <View style={styles.wordmarkWrap}>
           <Text style={styles.wordmark}>ONB</Text>
-          <Text style={styles.tagline}>Safe Messenger</Text>
+          <Text style={styles.tagline}>End To End Encrypted</Text>
         </View>
       </View>
 
@@ -141,31 +108,6 @@ export default function OnboardingScreen() {
         <Text style={styles.ctaLabel}>Tap to proceed</Text>
         <View style={styles.ctaLine} />
       </View>
-
-      {/* ripples */}
-      {ripples.map((r) => {
-        const scale = r.progress.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
-        const opacity = r.progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
-        return (
-          <Animated.View
-            key={r.id}
-            pointerEvents="none"
-            style={[
-              styles.ripple,
-              {
-                width: r.size,
-                height: r.size,
-                borderRadius: r.size / 2,
-                left: r.x - r.size / 2,
-                top: r.y - r.size / 2,
-                opacity,
-                transform: [{ scale }],
-              },
-            ]}
-          />
-        );
-      })}
-
     </Pressable>
   );
 }
@@ -189,7 +131,7 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     textTransform: 'uppercase',
     color: COLORS.inkFaint,
-    fontFamily: 'SpaceGrotesk-Regular',
+    fontFamily: 'Lora-Bold', // or 'Lora_700Bold' depending on your loaded font name
   },
   center: {
     flex: 1,
@@ -215,15 +157,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   wordmark: {
-    fontFamily: 'Fraunces-Black',
-    fontWeight: '800',
+    fontFamily: 'Lora-Bold', // wordmark = Lora bold
     fontSize: 64,
     letterSpacing: 9,
     color: COLORS.ink,
   },
   tagline: {
     marginTop: 6,
-    fontFamily: 'Fraunces-Italic',
+    fontFamily: 'Inter-Regular', // or 'Inter_400Regular'
     fontStyle: 'italic',
     opacity: 0.6,
     fontSize: 9,
@@ -242,18 +183,12 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: COLORS.inkDim,
     fontWeight: '500',
-    fontFamily: 'SpaceGrotesk-Medium',
+    fontFamily: 'Inter-Medium', // or 'Inter_500Medium'
   },
   ctaLine: {
     width: 34,
     height: 1,
     backgroundColor: COLORS.inkFaint,
     marginTop: 2,
-  },
-  ripple: {
-    position: 'absolute',
-    backgroundColor: COLORS.ringSoft,
-    borderWidth: 1,
-    borderColor: COLORS.ring,
   },
 });

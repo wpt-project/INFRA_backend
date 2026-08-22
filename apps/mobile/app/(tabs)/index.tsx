@@ -1,10 +1,9 @@
 // app/(tabs)/index.tsx
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   FlatList,
   Image,
   TouchableOpacity,
@@ -12,28 +11,39 @@ import {
   StatusBar,
   Platform,
   Modal,
-  ScrollView,
   Alert,
+  Animated,
+  Keyboard,
 } from 'react-native';
-import { SafeAreaView as SafeAreaViewContext } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useKeyboardHeight } from '@/hooks/use-keyboard-height';
+
+// ─── Constants ──────────────────────────────────────────────────────────────
 
 const COLORS = {
-  bg: '#000000',
-  bg2: '#1C1C1E',
-  bg3: '#2C2C2E',
-  text: '#FFFFFF',
-  textDim: '#8E8E93',
-  accent: '#34C759',
-  accentDim: 'rgba(52,199,89,0.12)',
-  border: '#2C2C2E',
-  error: '#FF3B30',
-  success: '#34C759',
+  bg: '#0B0F14',
+  bg2: '#15171C',
+  bg3: '#1C1C1E',
+  text: '#F3F3F4',
+  textDim: '#9AA0AC',
+  accent: '#3FC6B8',
+  accentDim: 'rgba(63,198,184,0.12)',
+  border: '#2E323C',
+  error: '#E5484D',
+  success: '#3FC6B8',
   incomingBubble: '#2C2C2E',
-  outgoingBubble: '#34C759',
+  outgoingBubble: '#3FC6B8',
 };
 
-// Sample chat data
+const FONTS = {
+  heading: 'Lora-Bold',
+  body: 'Inter-Regular',
+  bodyMedium: 'Inter-Medium',
+};
+
+// ─── Sample Data ─────────────────────────────────────────────────────────────
+
 const CHATS = [
   {
     id: '1',
@@ -78,7 +88,7 @@ const CHATS = [
   {
     id: '5',
     name: 'Sathish',
-    lastMessage: 'I\'ll be there in 10 minutes',
+    lastMessage: "I'll be there in 10 minutes",
     time: '2 days ago',
     unread: 0,
     online: true,
@@ -97,80 +107,97 @@ const CHATS = [
   },
 ];
 
-// Sample messages for each chat (will be generated on open)
-const getSampleMessages = (chatName: string) => [
+// Generate more realistic message history per chat
+const getMessagesForChat = (chatName: string) => [
   { id: 'm1', text: `Hi ${chatName}!`, sent: false, time: '10:00 AM' },
   { id: 'm2', text: `Hey there! How's it going?`, sent: true, time: '10:05 AM' },
   { id: 'm3', text: `I'm good, thanks for asking!`, sent: false, time: '10:06 AM' },
   { id: 'm4', text: `Let's catch up soon.`, sent: true, time: '10:10 AM' },
+  { id: 'm5', text: `Sure, what time works for you?`, sent: false, time: '10:12 AM' },
+  { id: 'm6', text: `How about 4pm?`, sent: true, time: '10:15 AM' },
 ];
 
-// ----- COMPONENTS -----
+// ─── Sub‑components ──────────────────────────────────────────────────────
 
-// Header for main chat list
-const Header = ({ onSearchPress, onMenuPress }: { onSearchPress: () => void; onMenuPress: () => void }) => {
-  return (
-    <View style={styles.header}>
-      <Text style={styles.headerTitle}>Chats</Text>
-      <View style={styles.headerRight}>
-        <TouchableOpacity style={styles.headerIcon} onPress={onSearchPress} hitSlop={8}>
-          <Ionicons name="search-outline" size={24} color={COLORS.text} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.headerIcon} onPress={onMenuPress} hitSlop={8}>
-          <Ionicons name="ellipsis-vertical" size={24} color={COLORS.text} />
-        </TouchableOpacity>
-      </View>
+// Header
+const Header = ({
+  onSearchPress,
+  onMenuPress,
+}: {
+  onSearchPress: () => void;
+  onMenuPress: () => void;
+}) => (
+  <View style={styles.header}>
+    <Text style={styles.headerTitle}>Chats</Text>
+    <View style={styles.headerRight}>
+      <TouchableOpacity style={styles.headerIcon} onPress={onSearchPress} hitSlop={8}>
+        <Ionicons name="search-outline" size={24} color={COLORS.text} />
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.headerIcon} onPress={onMenuPress} hitSlop={8}>
+        <Ionicons name="ellipsis-vertical" size={24} color={COLORS.text} />
+      </TouchableOpacity>
     </View>
-  );
-};
+  </View>
+);
 
-// Chat item row
-const ChatItem = ({ item, onPress }: { item: typeof CHATS[0]; onPress: () => void }) => {
-  return (
-    <TouchableOpacity style={styles.chatItem} activeOpacity={0.7} onPress={onPress}>
-      <View style={styles.avatarContainer}>
-        {item.avatar ? (
-          <Image source={{ uri: item.avatar }} style={styles.avatar} />
-        ) : (
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarText}>{item.initials}</Text>
+// Chat Item
+const ChatItem = ({
+  item,
+  onPress,
+}: {
+  item: typeof CHATS[0];
+  onPress: () => void;
+}) => (
+  <TouchableOpacity style={styles.chatItem} activeOpacity={0.7} onPress={onPress}>
+    <View style={styles.avatarContainer}>
+      {item.avatar ? (
+        <Image source={{ uri: item.avatar }} style={styles.avatar} />
+      ) : (
+        <View style={styles.avatarPlaceholder}>
+          <Text style={styles.avatarText}>{item.initials}</Text>
+        </View>
+      )}
+      {item.online && <View style={styles.onlineDot} />}
+    </View>
+    <View style={styles.chatInfo}>
+      <View style={styles.chatTop}>
+        <Text style={styles.chatName} numberOfLines={1}>
+          {item.name}
+        </Text>
+        <Text style={styles.chatTime}>{item.time}</Text>
+      </View>
+      <View style={styles.chatBottom}>
+        <Text style={styles.chatMessage} numberOfLines={1}>
+          {item.lastMessage}
+        </Text>
+        {item.unread > 0 && (
+          <View style={styles.unreadBadge}>
+            <Text style={styles.unreadText}>{item.unread}</Text>
           </View>
         )}
-        {item.online && <View style={styles.onlineDot} />}
       </View>
-      <View style={styles.chatInfo}>
-        <View style={styles.chatTop}>
-          <Text style={styles.chatName} numberOfLines={1}>{item.name}</Text>
-          <Text style={styles.chatTime}>{item.time}</Text>
-        </View>
-        <View style={styles.chatBottom}>
-          <Text style={styles.chatMessage} numberOfLines={1}>{item.lastMessage}</Text>
-          {item.unread > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadText}>{item.unread}</Text>
-            </View>
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-};
+    </View>
+  </TouchableOpacity>
+);
 
-// Empty state
-const EmptyState = () => (
+// Empty State
+const EmptyState = ({ onNewChat }: { onNewChat: () => void }) => (
   <View style={styles.emptyContainer}>
     <View style={styles.emptyIconContainer}>
       <Ionicons name="chatbubbles-outline" size={56} color={COLORS.textDim} />
     </View>
     <Text style={styles.emptyTitle}>No messages yet</Text>
-    <Text style={styles.emptySubtitle}>Start a conversation by finding someone to chat with</Text>
-    <TouchableOpacity style={styles.emptyButton}>
+    <Text style={styles.emptySubtitle}>
+      Start a conversation by finding someone to chat with
+    </Text>
+    <TouchableOpacity style={styles.emptyButton} onPress={onNewChat}>
       <Text style={styles.emptyButtonText}>New Conversation</Text>
     </TouchableOpacity>
   </View>
 );
 
-// Chat view (modal overlay)
+// ─── Chat View (with keyboard‑friendly input) ─────────────────────────────
+
 const ChatView = ({
   chat,
   onBack,
@@ -178,8 +205,28 @@ const ChatView = ({
   chat: typeof CHATS[0];
   onBack: () => void;
 }) => {
-  const [messages, setMessages] = useState(getSampleMessages(chat.name));
+  const [messages, setMessages] = useState(getMessagesForChat(chat.name));
   const [inputText, setInputText] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const flatListRef = useRef<FlatList>(null);
+  const typingTimeout = useRef<NodeJS.Timeout | null>(null);
+  const keyboardHeight = useKeyboardHeight();
+
+  // Scroll to bottom on new message or keyboard open
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  useEffect(() => {
+    const keyboardDidShow = Keyboard.addListener('keyboardDidShow', scrollToBottom);
+    return () => keyboardDidShow.remove();
+  }, []);
 
   const sendMessage = () => {
     if (!inputText.trim()) return;
@@ -189,78 +236,127 @@ const ChatView = ({
       sent: true,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
-    setMessages([...messages, newMsg]);
+    setMessages((prev) => [...prev, newMsg]);
     setInputText('');
 
-    // Simulate reply after 1 second
-    setTimeout(() => {
+    // Simulate "typing" indicator
+    setIsTyping(true);
+    if (typingTimeout.current) clearTimeout(typingTimeout.current);
+    typingTimeout.current = setTimeout(() => {
+      setIsTyping(false);
+      const replies = [
+        "That's great!",
+        'Got it, thanks!',
+        'Sounds good to me.',
+        'I agree.',
+        'Let me think about that.',
+        'Sure, no problem.',
+        "I'll get back to you.",
+        'Awesome!',
+      ];
       const reply = {
         id: `m${Date.now() + 1}`,
-        text: `Thanks for your message! (auto-reply)`,
+        text: replies[Math.floor(Math.random() * replies.length)],
         sent: false,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
-      setMessages(prev => [...prev, reply]);
-    }, 1000);
+      setMessages((prev) => [...prev, reply]);
+    }, 1000 + Math.random() * 1500);
   };
 
   const renderMessage = ({ item }: { item: typeof messages[0] }) => (
-    <View style={[styles.messageRow, item.sent ? styles.messageRowSent : styles.messageRowReceived]}>
-      <View style={[styles.messageBubble, item.sent ? styles.sentBubble : styles.receivedBubble]}>
+    <View
+      style={[
+        styles.messageRow,
+        item.sent ? styles.messageRowSent : styles.messageRowReceived,
+      ]}
+    >
+      <View
+        style={[
+          styles.messageBubble,
+          item.sent ? styles.sentBubble : styles.receivedBubble,
+        ]}
+      >
         <Text style={styles.messageText}>{item.text}</Text>
         <Text style={styles.messageTime}>{item.time}</Text>
       </View>
     </View>
   );
 
+  const renderTypingIndicator = () => (
+    <View style={styles.typingContainer}>
+      <View style={[styles.messageBubble, styles.receivedBubble]}>
+        <View style={styles.typingDots}>
+          <View style={[styles.typingDot, styles.typingDot1]} />
+          <View style={[styles.typingDot, styles.typingDot2]} />
+          <View style={[styles.typingDot, styles.typingDot3]} />
+        </View>
+      </View>
+    </View>
+  );
+
+  // Dynamic bottom padding for input bar
+  const inputBarPaddingBottom = keyboardHeight > 0 ? keyboardHeight + 12 : 12;
+
   return (
     <View style={styles.chatView}>
-      {/* Chat header */}
+      {/* Header */}
       <View style={styles.chatHeader}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <Ionicons name="chevron-back" size={28} color={COLORS.text} />
         </TouchableOpacity>
         <View style={styles.chatHeaderInfo}>
           <Text style={styles.chatHeaderName}>{chat.name}</Text>
-          <Text style={styles.chatHeaderStatus}>{chat.online ? 'Online' : 'Offline'}</Text>
+          <Text style={styles.chatHeaderStatus}>
+            {chat.online ? 'Online' : 'Offline'}
+          </Text>
         </View>
         <TouchableOpacity style={styles.chatHeaderIcon}>
           <Ionicons name="ellipsis-vertical" size={24} color={COLORS.text} />
         </TouchableOpacity>
       </View>
 
-      {/* Messages list */}
-      <FlatList
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={renderMessage}
-        contentContainerStyle={styles.messagesList}
-        inverted={false}
-      />
-
-      {/* Input bar */}
-      <View style={styles.inputBar}>
-        <TouchableOpacity style={styles.attachButton}>
-          <Ionicons name="attach" size={24} color={COLORS.textDim} />
-        </TouchableOpacity>
-        <TextInput
-          style={styles.inputField}
-          placeholder="Type a message..."
-          placeholderTextColor={COLORS.textDim}
-          value={inputText}
-          onChangeText={setInputText}
-          returnKeyType="send"
-          onSubmitEditing={sendMessage}
+      {/* Messages + Input */}
+      <View style={styles.chatBody}>
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={renderMessage}
+          contentContainerStyle={[
+            styles.messagesList,
+            // Add bottom padding to keep messages above input
+            { paddingBottom: 80 + keyboardHeight },
+          ]}
+          ListFooterComponent={isTyping ? renderTypingIndicator : null}
+          showsVerticalScrollIndicator={false}
         />
-        <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
-          <Ionicons name="send" size={22} color={COLORS.bg} />
-        </TouchableOpacity>
+
+        {/* Input bar – stays above keyboard with dynamic padding */}
+        <View style={[styles.inputBar, { paddingBottom: inputBarPaddingBottom }]}>
+          <TouchableOpacity style={styles.attachButton}>
+            <Ionicons name="attach" size={24} color={COLORS.textDim} />
+          </TouchableOpacity>
+          <TextInput
+            style={styles.inputField}
+            placeholder="Type a message..."
+            placeholderTextColor={COLORS.textDim}
+            value={inputText}
+            onChangeText={setInputText}
+            returnKeyType="send"
+            onSubmitEditing={sendMessage}
+            multiline
+          />
+          <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
+            <Ionicons name="send" size={20} color={COLORS.bg} />
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
 };
 
-// ----- MAIN SCREEN -----
+// ─── Main Screen ────────────────────────────────────────────────────────────
 
 export default function ChatListScreen() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -268,7 +364,7 @@ export default function ChatListScreen() {
   const [selectedChat, setSelectedChat] = useState<typeof CHATS[0] | null>(null);
   const [showMenu, setShowMenu] = useState(false);
 
-  const filteredChats = CHATS.filter(chat =>
+  const filteredChats = CHATS.filter((chat) =>
     chat.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -277,32 +373,26 @@ export default function ChatListScreen() {
     if (showSearch) setSearchQuery('');
   };
 
-  const handleChatPress = (chat: typeof CHATS[0]) => {
-    setSelectedChat(chat);
-  };
+  const handleChatPress = (chat: typeof CHATS[0]) => setSelectedChat(chat);
+  const handleBackFromChat = () => setSelectedChat(null);
 
-  const handleBackFromChat = () => {
-    setSelectedChat(null);
-  };
-
-  const handleMenuPress = () => {
-    setShowMenu(true);
-  };
-
+  const handleMenuPress = () => setShowMenu(true);
   const handleMenuOption = (option: string) => {
     setShowMenu(false);
     Alert.alert(option, `You selected "${option}"`);
   };
 
+  const handleNewChat = () => {
+    Alert.alert('New Conversation', 'This would open a contact picker.');
+  };
+
   return (
-    <SafeAreaViewContext style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
-      
+
       <View style={styles.content}>
-        {/* Header */}
         <Header onSearchPress={toggleSearch} onMenuPress={handleMenuPress} />
 
-        {/* Search Bar */}
         {showSearch && (
           <View style={styles.searchContainer}>
             <View style={styles.searchInputContainer}>
@@ -325,7 +415,6 @@ export default function ChatListScreen() {
           </View>
         )}
 
-        {/* Chat List */}
         {filteredChats.length > 0 ? (
           <FlatList
             data={filteredChats}
@@ -337,41 +426,59 @@ export default function ChatListScreen() {
             contentContainerStyle={styles.listContent}
           />
         ) : (
-          <EmptyState />
+          <EmptyState onNewChat={handleNewChat} />
         )}
       </View>
 
-      {/* Chat View Modal */}
+      {/* Chat overlay */}
       {selectedChat && (
         <View style={StyleSheet.absoluteFillObject}>
           <ChatView chat={selectedChat} onBack={handleBackFromChat} />
         </View>
       )}
 
-      {/* Three-dot menu modal */}
-      <Modal visible={showMenu} transparent animationType="fade" onRequestClose={() => setShowMenu(false)}>
-        <TouchableOpacity style={styles.menuOverlay} activeOpacity={1} onPress={() => setShowMenu(false)}>
+      {/* Menu Modal */}
+      <Modal
+        visible={showMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setShowMenu(false)}
+        >
           <View style={styles.menuContainer}>
-            <TouchableOpacity style={styles.menuItem} onPress={() => handleMenuOption('New Group')}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleMenuOption('New Group')}
+            >
               <Ionicons name="people-outline" size={22} color={COLORS.text} />
               <Text style={styles.menuText}>New Group</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItem} onPress={() => handleMenuOption('Settings')}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleMenuOption('Settings')}
+            >
               <Ionicons name="settings-outline" size={22} color={COLORS.text} />
               <Text style={styles.menuText}>Settings</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.menuItem, styles.menuItemDanger]} onPress={() => handleMenuOption('Logout')}>
+            <TouchableOpacity
+              style={[styles.menuItem, styles.menuItemDanger]}
+              onPress={() => handleMenuOption('Logout')}
+            >
               <Ionicons name="log-out-outline" size={22} color={COLORS.error} />
               <Text style={[styles.menuText, styles.menuTextDanger]}>Logout</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
-    </SafeAreaViewContext>
+    </SafeAreaView>
   );
 }
 
-// ----- STYLES -----
+// ─── Styles ─────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
@@ -394,9 +501,8 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 28,
-    fontWeight: '700',
+    fontFamily: FONTS.heading,
     color: COLORS.text,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   headerRight: {
     flexDirection: 'row',
@@ -428,7 +534,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     color: COLORS.text,
     fontSize: 15,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontFamily: FONTS.body,
   },
   listContent: {
     paddingTop: 8,
@@ -464,7 +570,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: COLORS.text,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontFamily: FONTS.bodyMedium,
   },
   onlineDot: {
     position: 'absolute',
@@ -490,12 +596,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: COLORS.text,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontFamily: FONTS.bodyMedium,
   },
   chatTime: {
     fontSize: 11,
     color: COLORS.textDim,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontFamily: FONTS.body,
   },
   chatBottom: {
     flexDirection: 'row',
@@ -506,7 +612,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: COLORS.textDim,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontFamily: FONTS.body,
     marginRight: 12,
   },
   unreadBadge: {
@@ -522,7 +628,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: COLORS.bg,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontFamily: FONTS.bodyMedium,
   },
   emptyContainer: {
     flex: 1,
@@ -546,14 +652,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text,
     marginBottom: 8,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontFamily: FONTS.heading,
   },
   emptySubtitle: {
     fontSize: 14,
     color: COLORS.textDim,
     textAlign: 'center',
     marginBottom: 24,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontFamily: FONTS.body,
   },
   emptyButton: {
     backgroundColor: COLORS.accent,
@@ -565,9 +671,10 @@ const styles = StyleSheet.create({
     color: COLORS.bg,
     fontSize: 14,
     fontWeight: '600',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontFamily: FONTS.bodyMedium,
   },
-  // Chat View Styles
+
+  // ─── Chat View Styles ─────────────────────────────────────────────
   chatView: {
     flex: 1,
     backgroundColor: COLORS.bg,
@@ -593,19 +700,25 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: COLORS.text,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontFamily: FONTS.bodyMedium,
   },
   chatHeaderStatus: {
     fontSize: 13,
     color: COLORS.textDim,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontFamily: FONTS.body,
   },
   chatHeaderIcon: {
     padding: 4,
   },
+  chatBody: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
   messagesList: {
     paddingHorizontal: 16,
     paddingVertical: 12,
+    flexGrow: 1,
+    justifyContent: 'flex-end',
   },
   messageRow: {
     marginBottom: 12,
@@ -633,23 +746,51 @@ const styles = StyleSheet.create({
   messageText: {
     fontSize: 16,
     color: COLORS.text,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontFamily: FONTS.body,
   },
   messageTime: {
     fontSize: 10,
     color: COLORS.textDim,
     marginTop: 4,
     alignSelf: 'flex-end',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontFamily: FONTS.body,
+  },
+  typingContainer: {
+    marginBottom: 12,
+    alignItems: 'flex-start',
+  },
+  typingDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    gap: 4,
+  },
+  typingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.textDim,
+    opacity: 0.4,
+  },
+  typingDot1: {
+    opacity: 0.8,
+  },
+  typingDot2: {
+    opacity: 0.5,
+  },
+  typingDot3: {
+    opacity: 0.3,
   },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingTop: 10,
     backgroundColor: COLORS.bg2,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
+    paddingBottom: 12, // will be overwritten by dynamic padding
   },
   attachButton: {
     marginRight: 12,
@@ -662,7 +803,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     color: COLORS.text,
     fontSize: 16,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontFamily: FONTS.body,
     maxHeight: 100,
   },
   sendButton: {
@@ -674,7 +815,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Menu Modal
+  // Menu
   menuOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -705,7 +846,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.text,
     marginLeft: 12,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontFamily: FONTS.body,
   },
   menuTextDanger: {
     color: COLORS.error,

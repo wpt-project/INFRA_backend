@@ -1,33 +1,37 @@
 // app/phone-entry.tsx
 import { onboardingApi } from '@/api/onboardingApi';
 import { COUNTRIES, type Country } from '@/constants/countries';
+import { Fonts } from '@/constants/typography';
+import { useKeyboardHeight } from '@/hooks/use-keyboard-height';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
   FlatList,
-  KeyboardAvoidingView,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
-  SafeAreaView,
 } from 'react-native';
 
 const C = {
-  bg: '#000000',
-  bg2: '#1C1C1E',
-  ink: '#FFFFFF',
-  inkDim: '#8E8E93',
-  accent: '#34C759',
-  ring: 'rgba(52,199,89,0.445)',
-  ringSoft: 'rgba(52,199,89,0.12)',
-  borderSoft: '#2C2C2E',
-  text: '#FFFFFF',
-  fail: '#FF3B30',
+  bg: '#0B0F14',
+  bg2: '#15171C',
+  ink: '#3FC6B8',
+  inkDim: '#9AA0AC',
+  accent: '#3FC6B8',
+  ring: 'rgba(63,198,184,0.445)',
+  ringSoft: 'rgba(63,198,184,0.12)',
+  borderSoft: '#2E323C',
+  text: '#F3F3F4',
+  fail: '#E5484D',
 };
 
 const INDIA = COUNTRIES.find((c) => c.iso === 'IN') ?? COUNTRIES[0];
@@ -57,23 +61,51 @@ export default function PhoneEntryScreen() {
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  const keyboardHeight = useKeyboardHeight();
+  const sheetY = useRef(new Animated.Value(0)).current;
+
+  const closeSheet = useCallback(() => {
+    setOpen(false);
+    setQuery('');
+  }, []);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_e, g) => g.dy > 0 && Math.abs(g.dy) > 6,
+      onPanResponderMove: (_e, g) => {
+        if (g.dy > 0) sheetY.setValue(g.dy);
+      },
+      onPanResponderRelease: (_e, g) => {
+        if (g.dy > 120 || g.vy > 0.8) {
+          Animated.timing(sheetY, { toValue: 600, duration: 180, useNativeDriver: true }).start(
+            closeSheet,
+          );
+        } else {
+          Animated.spring(sheetY, { toValue: 0, useNativeDriver: true, bounciness: 8 }).start();
+        }
+      },
+    }),
+  ).current;
+
+  useEffect(() => {
+    if (open) sheetY.setValue(0);
+  }, [open, sheetY]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return COUNTRIES;
+    const qDigits = q.replace(/[^0-9]/g, '');
     return COUNTRIES.filter(
       (c) =>
         c.name.toLowerCase().includes(q) ||
-        c.dial.replace(/[^0-9]/g, '').includes(q.replace(/[^0-9]/g, '')) ||
-        c.iso.toLowerCase() === q,
+        c.iso.toLowerCase().includes(q) ||
+        (qDigits.length > 0 && c.dial.replace(/[^0-9]/g, '').includes(qDigits)),
     );
   }, [query]);
 
   const digits = phone.replace(/\D/g, '');
   const maxLen = selected.lengths[selected.lengths.length - 1];
   const valid = digits.length > 0 && selected.lengths.includes(digits.length);
-  const placeholder = selected.format
-    ? selected.format.map((g) => 'X'.repeat(g)).join(' ')
-    : 'Enter your number';
 
   const select = (c: Country) => {
     setSelected(c);
@@ -99,86 +131,97 @@ export default function PhoneEntryScreen() {
     setIsLoading(true);
 
     try {
-      console.log('📱 Sending OTP for:', fullNumber);
       await onboardingApi.sendOtp({ phoneNumber: fullNumber });
-      
       router.push({
-        pathname: '/legal-acceptance',
+        pathname: '/otp-entry',
         params: { phoneNumber: fullNumber },
       });
     } catch {
-      Alert.alert('Error', 'Failed to send verification code. Please try again.');
+      Alert.alert('Error', 'Failed to send OTP. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.root}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.container}
-      >
-        <View style={styles.content}>
+    <LinearGradient
+      colors={[C.bg2, C.bg]}
+      start={{ x: 0.5, y: 0 }}
+      end={{ x: 0.5, y: 0.45 }}
+      style={styles.root}
+    >
+      <View style={styles.top}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.backBtn}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="arrow-back" size={26} color={C.ink} />
+        </Pressable>
+      </View>
+
+      <View style={styles.body}>
+        <View style={styles.header}>
           <Text style={styles.title}>What&apos;s your number?</Text>
-          <Text style={styles.sub}>
-            We&apos;ll send a one-time code to verify it&apos;s you.
-          </Text>
+          <Text style={styles.sub}>We will send a OTP to verify it&apos;s you.</Text>
+        </View>
 
-          <View style={styles.inputSection}>
-            <Text style={styles.label}>PHONE NUMBER</Text>
-            <View style={styles.row}>
-              <Pressable 
-                style={styles.cc} 
-                onPress={() => setOpen(true)} 
-                accessibilityRole="button"
-              >
-                <Text style={styles.ccFlag}>{selected.flag}</Text>
-                <Text style={styles.ccCode}>{selected.dial}</Text>
-              </Pressable>
-              <TextInput
-                style={styles.num}
-                value={phone}
-                keyboardType="phone-pad"
-                placeholder={placeholder}
-                placeholderTextColor={C.inkDim}
-                editable={!isLoading}
-                onChangeText={handlePhoneChange}
-              />
-            </View>
-            {phone.length > 0 && !valid && (
-              <Text style={styles.error}>
-                Enter a valid {selected.name} number ({lengthLabel(selected.lengths)})
-              </Text>
-            )}
-            <Text style={styles.note}>
-              We&apos;ll send the code to {selected.dial} {phone.trim() || 'your number'}.
-            </Text>
+        <View style={styles.middle}>
+          <Text style={styles.label}>PHONE NUMBER</Text>
+          <View style={styles.row}>
+            <Pressable style={styles.cc} onPress={() => setOpen(true)} accessibilityRole="button">
+              <Text style={styles.ccFlag}>{selected.flag}</Text>
+              <Text style={styles.ccCode}>{selected.dial}</Text>
+              <Ionicons name="chevron-down" size={14} color={C.inkDim} />
+            </Pressable>
+            <TextInput
+              style={styles.num}
+              value={phone}
+              keyboardType="phone-pad"
+              placeholder="Enter phone number"
+              placeholderTextColor={C.inkDim}
+              editable={!isLoading}
+              onChangeText={handlePhoneChange}
+            />
           </View>
+          {phone.length > 0 && !valid && (
+            <Text style={styles.error}>
+              Enter a valid {selected.name} number ({lengthLabel(selected.lengths)})
+            </Text>
+          )}
+        </View>
 
+        <View
+          style={[
+            styles.bottomSection,
+            keyboardHeight > 0 && { paddingBottom: keyboardHeight + 30 },
+          ]}
+        >
           <Pressable
             style={[styles.btn, (!valid || isLoading) && styles.btnDisabled]}
             disabled={!valid || isLoading}
             onPress={handleContinue}
           >
-            <Text style={styles.btnText}>
-              {isLoading ? 'Sending…' : 'SEND CODE'}
-            </Text>
+            <Text style={styles.btnText}>{isLoading ? 'Sending…' : 'Send OTP'}</Text>
           </Pressable>
 
-          <Text style={styles.footerText}>
-            Your number is safe with us.{'\n'}
-            We never share it with others.
-          </Text>
+          <View style={styles.bottomRow}>
+            <Ionicons name="lock-closed-outline" size={14} color={C.inkDim} />
+            <Text style={styles.bottomText}>End-to-end encrypted messaging</Text>
+          </View>
         </View>
-      </KeyboardAvoidingView>
+      </View>
 
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+      <Modal visible={open} transparent animationType="slide" onRequestClose={closeSheet}>
         <View style={styles.overlay}>
-          <Pressable style={styles.overlayBackdrop} onPress={() => setOpen(false)} />
-          <View style={styles.sheet}>
-            <View style={styles.handle} />
-            <Text style={styles.sheetTitle}>Select country</Text>
+          <Pressable style={styles.overlayBackdrop} onPress={closeSheet} />
+          <Animated.View style={[styles.sheet, { transform: [{ translateY: sheetY }] }]}>
+            <View style={styles.dragHandle} {...panResponder.panHandlers}>
+              <View style={styles.handle} />
+              <Text style={styles.sheetTitle}>Select country</Text>
+            </View>
             <TextInput
               style={styles.search}
               value={query}
@@ -198,138 +241,145 @@ export default function PhoneEntryScreen() {
                   style={[styles.rowItem, item.iso === selected.iso && styles.rowItemActive]}
                   onPress={() => select(item)}
                 >
-                  <Text style={styles.rowFlag}>{item.flag}</Text>
+                  <View style={styles.rowLeft}>
+                    <Text style={styles.rowFlag}>{item.flag}</Text>
+                    <Text style={styles.rowCode}>{item.dial}</Text>
+                  </View>
                   <Text
                     style={[styles.rowName, item.iso === selected.iso && styles.rowNameActive]}
                     numberOfLines={1}
                   >
                     {item.name}
                   </Text>
-                  <Text style={styles.rowCode}>{item.dial}</Text>
                 </Pressable>
               )}
             />
-          </View>
+          </Animated.View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: C.bg,
   },
-  container: {
-    flex: 1,
+  top: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: Platform.OS === 'ios' ? 56 : 32,
+    paddingHorizontal: 8,
   },
-  content: {
+  backBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  body: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 40,
-    justifyContent: 'space-between',
+    paddingHorizontal: 28,
+  },
+  header: {
+    marginTop: 24,
   },
   title: {
-    color: C.ink,
-    fontSize: 34,
+    color: C.text,
+    fontSize: 32,
+    lineHeight: 39,
+    marginBottom: 16,
+    fontFamily: Fonts.heading,
     fontWeight: '700',
-    marginBottom: 8,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   sub: {
     color: C.inkDim,
-    fontSize: 16,
+    fontSize: 15,
     lineHeight: 22,
-    marginBottom: 40,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontFamily: Fonts.body,
   },
-  inputSection: {
-    flex: 1,
+  middle: {
+    marginTop: 36,
   },
   label: {
-    color: C.inkDim,
-    fontSize: 12,
-    letterSpacing: 1,
-    marginBottom: 8,
-    fontWeight: '500',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    color: C.accent,
+    fontSize: 11,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+    fontWeight: '600',
+    fontFamily: Fonts.bodyMedium,
   },
   row: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
   },
   cc: {
-    minWidth: 90,
-    backgroundColor: C.bg2,
+    height: 52,
+    minWidth: 104,
+    backgroundColor: C.bg,
+    borderWidth: 1,
+    borderColor: C.borderSoft,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  ccFlag: { fontSize: 16 },
+  ccCode: { color: C.text, fontSize: 14, fontWeight: '500', fontFamily: Fonts.bodyMedium },
+  num: {
+    flex: 1,
+    height: 52,
+    backgroundColor: C.bg,
     borderWidth: 1,
     borderColor: C.borderSoft,
     borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  ccFlag: { 
-    fontSize: 18,
-  },
-  ccCode: { 
-    color: C.text, 
-    fontSize: 16, 
-    fontWeight: '500',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-  },
-  num: {
-    flex: 1,
-    backgroundColor: C.bg2,
-    borderWidth: 1,
-    borderColor: C.borderSoft,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
     color: C.text,
     fontSize: 16,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontFamily: Fonts.body,
+    textAlignVertical: 'center',
   },
   error: {
     color: C.fail,
-    fontSize: 13,
+    fontSize: 11.5,
     marginTop: 8,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontFamily: Fonts.body,
   },
-  note: {
-    color: C.inkDim,
-    fontSize: 13,
-    marginTop: 12,
-    lineHeight: 18,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+  bottomSection: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingBottom: Platform.OS === 'ios' ? 48 : 32,
   },
   btn: {
-    marginTop: 20,
-    backgroundColor: C.accent,
+    backgroundColor: C.ink,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
   },
-  btnDisabled: { 
-    opacity: 0.5,
-  },
+  btnDisabled: { opacity: 0.35 },
   btnText: {
     color: C.bg,
-    fontWeight: '700',
-    fontSize: 15,
-    letterSpacing: 1,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontWeight: '600',
+    fontSize: 14,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    fontFamily: Fonts.bodyMedium,
   },
-  footerText: {
+  bottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 20,
+  },
+  bottomText: {
     color: C.inkDim,
-    fontSize: 13,
-    textAlign: 'center',
-    marginTop: 32,
-    lineHeight: 20,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontSize: 12,
+    fontFamily: Fonts.body,
   },
   overlay: {
     flex: 1,
@@ -361,13 +411,15 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 6,
   },
+  dragHandle: {
+    paddingBottom: 2,
+  },
   sheetTitle: {
     color: C.ink,
     fontSize: 18,
-    fontWeight: '600',
     paddingHorizontal: 20,
     paddingBottom: 12,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontFamily: Fonts.heading,
   },
   search: {
     marginHorizontal: 20,
@@ -380,11 +432,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     color: C.text,
     fontSize: 14,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontFamily: Fonts.body,
   },
-  list: { 
-    paddingHorizontal: 8,
-  },
+  list: { paddingHorizontal: 8 },
   rowItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -393,31 +443,28 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     borderRadius: 12,
   },
-  rowItemActive: { 
-    backgroundColor: C.ringSoft,
+  rowItemActive: { backgroundColor: C.ringSoft },
+  rowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minWidth: 96,
   },
-  rowFlag: { 
-    fontSize: 18,
-  },
+  rowFlag: { fontSize: 16 },
   rowName: {
     flex: 1,
     color: C.text,
-    fontSize: 15,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontSize: 14.5,
+    textAlign: 'right',
+    fontFamily: Fonts.body,
   },
-  rowNameActive: { 
-    color: C.accent,
-  },
-  rowCode: { 
-    color: C.inkDim, 
-    fontSize: 14, 
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-  },
+  rowNameActive: { color: C.accent },
+  rowCode: { color: C.inkDim, fontSize: 13, fontWeight: '500', fontFamily: Fonts.bodyMedium },
   empty: {
     color: C.inkDim,
     fontSize: 13,
     textAlign: 'center',
     paddingVertical: 28,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontFamily: Fonts.body,
   },
 });

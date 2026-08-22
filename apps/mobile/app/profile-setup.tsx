@@ -15,22 +15,23 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Modal,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { onboardingApi } from '@/api/onboardingApi';
 import { Ionicons } from '@expo/vector-icons';
 
 const COLORS = {
-  bg: '#000000',
+  bg: '#0B0F14',
+  bg2: '#15171C',
   inputBg: '#1C1C1E',
-  border: '#2C2C2E',
-  text: '#FFFFFF',
-  textDim: '#8E8E93',
-  accent: '#34C759',
-  accentDim: 'rgba(52,199,89,0.12)',
-  error: '#FF3B30',
-  success: '#34C759',
+  border: '#2E323C',
+  text: '#F3F3F4',
+  textDim: '#9AA0AC',
+  accent: '#3FC6B8',
+  accentDim: 'rgba(63,198,184,0.12)',
+  error: '#E5484D',
+  success: '#3FC6B8',
 };
 
 const DEFAULT_ABOUT = "Hey there! I'm using ONB";
@@ -44,28 +45,17 @@ export default function ProfileSetupScreen() {
   const [isPickingImage, setIsPickingImage] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
 
-  const hasVisibleChars = (text: string): boolean => {
-    return text.trim().length > 0;
-  };
-
+  const hasVisibleChars = (text: string): boolean => text.trim().length > 0;
   const isNameValid = hasVisibleChars(name);
   const isFormValid = isNameValid;
 
-  const handleAboutChange = (text: string) => {
-    setAbout(text);
-  };
-
-  const handleAboutBlur = () => {
-    if (!about.trim()) {
-      setAbout(DEFAULT_ABOUT);
-    }
-  };
+  const handleAboutChange = (text: string) => setAbout(text);
+  const handleAboutBlur = () => { if (!about.trim()) setAbout(DEFAULT_ABOUT); };
 
   const handlePickImage = async () => {
     try {
       setIsPickingImage(true);
       setShowPhotoModal(false);
-      
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -73,12 +63,9 @@ export default function ProfileSetupScreen() {
         quality: 0.8,
         base64: true,
       });
-
-      if (!result.canceled && result.assets[0]) {
-        setPhoto(result.assets[0].uri);
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
+      if (!result.canceled && result.assets[0]) setPhoto(result.assets[0].uri);
+    } catch {
+      Alert.alert('Error', 'Failed to pick image.');
     } finally {
       setIsPickingImage(false);
     }
@@ -88,26 +75,20 @@ export default function ProfileSetupScreen() {
     try {
       setIsPickingImage(true);
       setShowPhotoModal(false);
-      
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Please grant camera permissions to take a photo.');
+        Alert.alert('Permission needed', 'Please grant camera permissions.');
         return;
       }
-
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
         base64: true,
       });
-
-      if (!result.canceled && result.assets[0]) {
-        setPhoto(result.assets[0].uri);
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to take photo. Please try again.');
+      if (!result.canceled && result.assets[0]) setPhoto(result.assets[0].uri);
+    } catch {
+      Alert.alert('Error', 'Failed to take photo.');
     } finally {
       setIsPickingImage(false);
     }
@@ -130,9 +111,7 @@ export default function ProfileSetupScreen() {
       Alert.alert('Name Required', 'Please enter your name to continue.');
       return;
     }
-
     setIsLoading(true);
-
     try {
       await onboardingApi.createProfile({
         phoneNumber: params.phoneNumber || '',
@@ -140,24 +119,29 @@ export default function ProfileSetupScreen() {
         photo: photo || undefined,
         about: about.trim() || DEFAULT_ABOUT,
       });
-
       router.replace('/(tabs)');
     } catch (error: any) {
-      Alert.alert(
-        'Error', 
-        error.message || 'Failed to set up profile. Please try again.'
-      );
+      Alert.alert('Error', error.message || 'Failed to set up profile.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const displayPhone = params.phoneNumber || 'No number provided';
+
   return (
-    <SafeAreaView style={styles.root}>
-      {/* Back button */}
-      <Pressable style={styles.backBtn} onPress={() => router.back()} hitSlop={16}>
-        <Ionicons name="chevron-back" size={28} color={COLORS.text} />
-      </Pressable>
+    <SafeAreaView style={styles.root} edges={['top']}>
+      <View style={styles.top}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.backBtn}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="arrow-back" size={26} color={COLORS.accent} />
+        </Pressable>
+      </View>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -169,7 +153,6 @@ export default function ProfileSetupScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.content}>
-            {/* Header */}
             <View style={styles.header}>
               <Text style={styles.title}>Set up your profile</Text>
               <Text style={styles.sub}>
@@ -177,10 +160,9 @@ export default function ProfileSetupScreen() {
               </Text>
             </View>
 
-            {/* Profile Photo */}
             <View style={styles.photoSection}>
-              <TouchableOpacity 
-                style={styles.photoContainer} 
+              <TouchableOpacity
+                style={styles.photoContainer}
                 onPress={() => setShowPhotoModal(true)}
                 disabled={isLoading || isPickingImage}
                 activeOpacity={0.7}
@@ -203,7 +185,6 @@ export default function ProfileSetupScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Name Field */}
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>FULL NAME</Text>
               <View style={[
@@ -223,7 +204,7 @@ export default function ProfileSetupScreen() {
                 />
               </View>
               {name.length > 0 && !isNameValid && (
-                <Text style={styles.errorText}>Name cannot be empty or only spaces</Text>
+                <Text style={styles.errorText}>Name cannot be empty</Text>
               )}
               {isNameValid && name.length > 0 && (
                 <View style={styles.successContainer}>
@@ -233,7 +214,6 @@ export default function ProfileSetupScreen() {
               )}
             </View>
 
-            {/* About Field */}
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>ABOUT</Text>
               <View style={styles.inputWrap}>
@@ -255,7 +235,6 @@ export default function ProfileSetupScreen() {
               <Text style={styles.charCount}>{about.length}/80</Text>
             </View>
 
-            {/* Submit Button */}
             <Pressable
               style={[styles.btn, (!isFormValid || isLoading) && styles.btnDisabled]}
               disabled={!isFormValid || isLoading}
@@ -267,31 +246,29 @@ export default function ProfileSetupScreen() {
             </Pressable>
 
             <Text style={styles.phoneNote}>
-              Phone: {params.phoneNumber || 'your number'}
+              Phone: {displayPhone}
             </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Photo Options Modal (unchanged) */}
+      {/* Photo Modal (unchanged) */}
       <Modal
         visible={showPhotoModal}
         transparent
         animationType="slide"
         onRequestClose={() => setShowPhotoModal(false)}
       >
-        <SafeAreaView style={styles.modalOverlay}>
+        <SafeAreaView style={styles.modalOverlay} edges={['bottom']}>
           <View style={styles.modalContent}>
             <View style={styles.modalHandle} />
-            
             <Text style={styles.modalTitle}>Profile Photo</Text>
             <Text style={styles.modalSubtitle}>
               Choose a photo for your profile
             </Text>
-
             <View style={styles.modalOptions}>
-              <TouchableOpacity 
-                style={styles.modalOption} 
+              <TouchableOpacity
+                style={styles.modalOption}
                 onPress={handleTakePhoto}
                 activeOpacity={0.6}
               >
@@ -305,8 +282,8 @@ export default function ProfileSetupScreen() {
                 <Ionicons name="chevron-forward" size={20} color={COLORS.textDim} />
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.modalOption} 
+              <TouchableOpacity
+                style={styles.modalOption}
                 onPress={handlePickImage}
                 activeOpacity={0.6}
               >
@@ -321,8 +298,8 @@ export default function ProfileSetupScreen() {
               </TouchableOpacity>
 
               {photo && (
-                <TouchableOpacity 
-                  style={[styles.modalOption, styles.removeOption]} 
+                <TouchableOpacity
+                  style={[styles.modalOption, styles.removeOption]}
                   onPress={handleRemovePhoto}
                   activeOpacity={0.6}
                 >
@@ -338,8 +315,7 @@ export default function ProfileSetupScreen() {
                 </TouchableOpacity>
               )}
             </View>
-
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.modalCancel}
               onPress={() => setShowPhotoModal(false)}
               activeOpacity={0.6}
@@ -353,17 +329,24 @@ export default function ProfileSetupScreen() {
   );
 }
 
+// ─── Styles – content aligned to top ───
 const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: COLORS.bg,
   },
+  top: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingTop: 8,
+  },
   backBtn: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 12 : 16,
-    left: 16,
-    zIndex: 10,
-    padding: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   container: {
     flex: 1,
@@ -371,9 +354,9 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'ios' ? 70 : 50,
+    paddingTop: 4,              // 👈 minimal top padding – content starts near top
     paddingBottom: 40,
-    justifyContent: 'center',
+    // no justifyContent – content sticks to top
   },
   content: {
     width: '100%',
@@ -381,22 +364,26 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   header: {
-    marginBottom: 32,
+    marginBottom: 20,           // reduced spacing
   },
   title: {
     color: COLORS.text,
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: 4,
+    fontFamily: 'Lora-Bold',
+    textAlign: 'left',
   },
   sub: {
     color: COLORS.textDim,
-    fontSize: 16,
+    fontSize: 15,
     lineHeight: 22,
+    fontFamily: 'Inter-Regular',
+    textAlign: 'left',
   },
   photoSection: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 24,           // reduced
   },
   photoContainer: {
     position: 'relative',
@@ -423,6 +410,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
     color: COLORS.text,
     fontWeight: '600',
+    fontFamily: 'Inter-Medium',
   },
   photoLoading: {
     position: 'absolute',
@@ -449,20 +437,22 @@ const styles = StyleSheet.create({
     borderColor: COLORS.bg,
   },
   fieldGroup: {
-    marginBottom: 24,
+    marginBottom: 20,           // reduced
   },
   label: {
     color: COLORS.textDim,
-    fontSize: 12,
-    letterSpacing: 1,
-    fontWeight: '500',
-    marginBottom: 8,
+    fontSize: 11,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+    fontWeight: '600',
+    fontFamily: 'Inter-Medium',
   },
   inputWrap: {
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: 12,
-    backgroundColor: COLORS.inputBg,
+    backgroundColor: COLORS.bg,
     overflow: 'hidden',
   },
   inputError: {
@@ -474,6 +464,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 16,
     minHeight: 48,
+    fontFamily: 'Inter-Regular',
   },
   aboutInput: {
     minHeight: 60,
@@ -483,6 +474,7 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     fontSize: 12,
     marginTop: 4,
+    fontFamily: 'Inter-Regular',
   },
   successContainer: {
     flexDirection: 'row',
@@ -494,45 +486,50 @@ const styles = StyleSheet.create({
     color: COLORS.success,
     fontSize: 12,
     fontWeight: '500',
+    fontFamily: 'Inter-Medium',
   },
   charCount: {
     color: COLORS.textDim,
     fontSize: 11,
     textAlign: 'right',
     marginTop: 4,
+    fontFamily: 'Inter-Regular',
   },
   btn: {
     backgroundColor: COLORS.accent,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 4,
   },
   btnDisabled: {
-    opacity: 0.5,
+    opacity: 0.35,
   },
   btnText: {
     color: COLORS.bg,
-    fontWeight: '700',
-    fontSize: 15,
-    letterSpacing: 1,
+    fontWeight: '600',
+    fontSize: 14,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    fontFamily: 'Inter-Medium',
   },
   phoneNote: {
     color: COLORS.textDim,
     fontSize: 12,
     textAlign: 'center',
-    marginTop: 16,
+    marginTop: 12,
+    fontFamily: 'Inter-Regular',
   },
-  // Modal styles (unchanged, only updated colors)
+  // Modal styles (unchanged)
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.72)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: COLORS.inputBg,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: COLORS.bg2,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 34 : 24,
@@ -540,23 +537,25 @@ const styles = StyleSheet.create({
   modalHandle: {
     width: 36,
     height: 4,
-    backgroundColor: COLORS.border,
     borderRadius: 2,
+    backgroundColor: COLORS.accentDim,
     alignSelf: 'center',
     marginBottom: 20,
   },
   modalTitle: {
     color: COLORS.text,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: 4,
+    fontFamily: 'Lora-Bold',
   },
   modalSubtitle: {
     color: COLORS.textDim,
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 24,
+    fontFamily: 'Inter-Regular',
   },
   modalOptions: {
     gap: 12,
@@ -587,7 +586,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accentDim,
   },
   removeIcon: {
-    backgroundColor: 'rgba(255,59,48,0.15)',
+    backgroundColor: 'rgba(229,72,77,0.15)',
   },
   modalOptionText: {
     flex: 1,
@@ -596,14 +595,16 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 15,
     fontWeight: '500',
+    fontFamily: 'Inter-Medium',
   },
   modalOptionDesc: {
     color: COLORS.textDim,
     fontSize: 12,
     marginTop: 1,
+    fontFamily: 'Inter-Regular',
   },
   removeOption: {
-    borderColor: 'rgba(255,59,48,0.3)',
+    borderColor: 'rgba(229,72,77,0.3)',
   },
   removeText: {
     color: COLORS.error,
@@ -620,5 +621,6 @@ const styles = StyleSheet.create({
     color: COLORS.textDim,
     fontSize: 16,
     fontWeight: '500',
+    fontFamily: 'Inter-Medium',
   },
 });
