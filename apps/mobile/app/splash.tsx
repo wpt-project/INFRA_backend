@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { Fonts } from '@/constants/typography';
 import Svg, { Path } from 'react-native-svg';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
@@ -268,6 +269,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
   },
   topLabel: {
+    fontFamily: Fonts.heading,
     fontSize: 11,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -298,12 +300,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   wordmark: {
+    fontFamily: Fonts.logo,
     fontWeight: '800',
     fontSize: 44,
     letterSpacing: 9,
     color: COLORS.ink,
   },
   tagline: {
+    fontFamily: Fonts.body,
     marginTop: 6,
     fontStyle: 'italic',
     opacity: 0.6,
@@ -347,6 +351,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
   },
   nextText: {
+    fontFamily: Fonts.body,
     fontStyle: 'italic',
     fontWeight: '400',
     fontSize: 22,

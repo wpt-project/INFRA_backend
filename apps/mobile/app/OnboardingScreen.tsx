@@ -1,6 +1,7 @@
 // app/OnboardingScreen.tsx
 
 import React, { useEffect, useRef, useCallback } from 'react';
+import { Fonts } from '@/constants/typography';
 import {
   View,
   Text,
@@ -131,7 +132,7 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     textTransform: 'uppercase',
     color: COLORS.inkFaint,
-    fontFamily: 'Lora-Bold', // or 'Lora_700Bold' depending on your loaded font name
+    fontFamily: Fonts.logo, // or 'Lora_700Bold' depending on your loaded font name
   },
   center: {
     flex: 1,
@@ -157,14 +158,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   wordmark: {
-    fontFamily: 'Lora-Bold', // wordmark = Lora bold
+    fontFamily: Fonts.logo, // wordmark = Lora bold
     fontSize: 64,
     letterSpacing: 9,
     color: COLORS.ink,
   },
   tagline: {
     marginTop: 6,
-    fontFamily: 'Inter-Regular', // or 'Inter_400Regular'
+    fontFamily: Fonts.body, // or 'Inter_400Regular'
     fontStyle: 'italic',
     opacity: 0.6,
     fontSize: 9,
@@ -183,7 +184,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: COLORS.inkDim,
     fontWeight: '500',
-    fontFamily: 'Inter-Medium', // or 'Inter_500Medium'
+    fontFamily: Fonts.bodyMedium, // or 'Inter_500Medium'
   },
   ctaLine: {
     width: 34,

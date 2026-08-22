@@ -4,6 +4,7 @@
 // old phone + Web silently. Confirmation shown only on new device.
 
 import React, { useEffect, useState } from 'react';
+import { Fonts } from '@/constants/typography';
 import {
   View,
   Text,
@@ -99,12 +100,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#3FC6B8',
   },
   title: {
+    fontFamily: Fonts.logo,
     fontWeight: '700',
     fontSize: 28,
     color: '#F3F3F4',
     marginBottom: 12,
   },
   subtitle: {
+    fontFamily: Fonts.body,
     fontSize: 16,
     color: '#9AA0AC',
     textAlign: 'center',
@@ -123,11 +126,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   continueButtonText: {
+    fontFamily: Fonts.heading,
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '600',
   },
   note: {
+    fontFamily: Fonts.body,
     fontSize: 11,
     color: '#6B7280',
     textAlign: 'center',

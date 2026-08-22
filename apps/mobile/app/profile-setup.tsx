@@ -1,5 +1,6 @@
 // app/profile-setup.tsx
 import { router, useLocalSearchParams } from 'expo-router';
+import { Fonts } from '@/constants/typography';
 import React, { useState } from 'react';
 import {
   Platform,
@@ -371,14 +372,14 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '700',
     marginBottom: 4,
-    fontFamily: 'Lora-Bold',
+    fontFamily: Fonts.logo,
     textAlign: 'left',
   },
   sub: {
     color: COLORS.textDim,
     fontSize: 15,
     lineHeight: 22,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Fonts.body,
     textAlign: 'left',
   },
   photoSection: {
@@ -410,7 +411,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
     color: COLORS.text,
     fontWeight: '600',
-    fontFamily: 'Inter-Medium',
+    fontFamily: Fonts.bodyMedium,
   },
   photoLoading: {
     position: 'absolute',
@@ -446,7 +447,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 6,
     fontWeight: '600',
-    fontFamily: 'Inter-Medium',
+    fontFamily: Fonts.bodyMedium,
   },
   inputWrap: {
     borderWidth: 1,
@@ -464,7 +465,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 16,
     minHeight: 48,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Fonts.body,
   },
   aboutInput: {
     minHeight: 60,
@@ -474,7 +475,7 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     fontSize: 12,
     marginTop: 4,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Fonts.body,
   },
   successContainer: {
     flexDirection: 'row',
@@ -486,14 +487,14 @@ const styles = StyleSheet.create({
     color: COLORS.success,
     fontSize: 12,
     fontWeight: '500',
-    fontFamily: 'Inter-Medium',
+    fontFamily: Fonts.bodyMedium,
   },
   charCount: {
     color: COLORS.textDim,
     fontSize: 11,
     textAlign: 'right',
     marginTop: 4,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Fonts.body,
   },
   btn: {
     backgroundColor: COLORS.accent,
@@ -511,14 +512,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     letterSpacing: 2,
     textTransform: 'uppercase',
-    fontFamily: 'Inter-Medium',
+    fontFamily: Fonts.bodyMedium,
   },
   phoneNote: {
     color: COLORS.textDim,
     fontSize: 12,
     textAlign: 'center',
     marginTop: 12,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Fonts.body,
   },
   // Modal styles (unchanged)
   modalOverlay: {
@@ -548,14 +549,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: 4,
-    fontFamily: 'Lora-Bold',
+    fontFamily: Fonts.logo,
   },
   modalSubtitle: {
     color: COLORS.textDim,
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 24,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Fonts.body,
   },
   modalOptions: {
     gap: 12,
@@ -595,13 +596,13 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 15,
     fontWeight: '500',
-    fontFamily: 'Inter-Medium',
+    fontFamily: Fonts.bodyMedium,
   },
   modalOptionDesc: {
     color: COLORS.textDim,
     fontSize: 12,
     marginTop: 1,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Fonts.body,
   },
   removeOption: {
     borderColor: 'rgba(229,72,77,0.3)',
@@ -621,6 +622,6 @@ const styles = StyleSheet.create({
     color: COLORS.textDim,
     fontSize: 16,
     fontWeight: '500',
-    fontFamily: 'Inter-Medium',
+    fontFamily: Fonts.bodyMedium,
   },
 });

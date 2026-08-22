@@ -12,6 +12,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Collapsible } from '@/components/ui/collapsible';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Fonts } from '@/constants/typography';
 
 const C = {
   bg: '#0a0a0b',
@@ -253,12 +254,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 36,
-    fontFamily: 'Fraunces-Black',
+    fontFamily: Fonts.logo,
     letterSpacing: 2,
   },
   headerSubtitle: {
     fontSize: 14,
-    fontFamily: 'SpaceGrotesk-Regular',
+    fontFamily: Fonts.body,
     letterSpacing: 1,
     marginTop: 4,
   },
@@ -270,12 +271,12 @@ const styles = StyleSheet.create({
   },
   greetingText: {
     fontSize: 22,
-    fontFamily: 'Fraunces-Black',
+    fontFamily: Fonts.logo,
     marginBottom: 8,
   },
   greetingSubtext: {
     fontSize: 14,
-    fontFamily: 'SpaceGrotesk-Regular',
+    fontFamily: Fonts.body,
     lineHeight: 22,
   },
   featuresGrid: {
@@ -299,12 +300,12 @@ const styles = StyleSheet.create({
   },
   featureTitle: {
     fontSize: 16,
-    fontFamily: 'SpaceGrotesk-Medium',
+    fontFamily: Fonts.bodyMedium,
     flex: 1,
   },
   featureDescription: {
     fontSize: 13,
-    fontFamily: 'SpaceGrotesk-Regular',
+    fontFamily: Fonts.body,
     lineHeight: 20,
     marginBottom: 12,
   },
@@ -330,7 +331,7 @@ const styles = StyleSheet.create({
   },
   platformText: {
     fontSize: 12,
-    fontFamily: 'SpaceGrotesk-Medium',
+    fontFamily: Fonts.bodyMedium,
   },
   linkContainer: {
     flexDirection: 'row',
@@ -340,7 +341,7 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontSize: 13,
-    fontFamily: 'SpaceGrotesk-Medium',
+    fontFamily: Fonts.bodyMedium,
   },
   footerContainer: {
     alignItems: 'center',
@@ -350,7 +351,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 13,
-    fontFamily: 'SpaceGrotesk-Regular',
+    fontFamily: Fonts.body,
   },
   footerBadges: {
     flexDirection: 'row',
@@ -366,7 +367,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 10,
-    fontFamily: 'SpaceGrotesk-Medium',
+    fontFamily: Fonts.bodyMedium,
     letterSpacing: 0.5,
   },
 });

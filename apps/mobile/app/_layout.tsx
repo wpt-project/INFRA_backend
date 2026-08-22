@@ -4,9 +4,15 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { useFonts } from 'expo-font';
-import { Fraunces_800ExtraBold, Fraunces_400Regular_Italic } from '@expo-google-fonts/fraunces';
-import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium } from '@expo-google-fonts/space-grotesk';
+import {
+  Lato_100Thin,
+  Lato_300Light,
+  Lato_400Regular,
+  Lato_700Bold,
+  Lato_900Black,
+} from '@/constants/fonts';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { usePreventBackExit } from '@/hooks/use-prevent-back-exit';
 import { SessionProvider } from '@/providers/SessionProvider';
 
 export const unstable_settings = {
@@ -15,12 +21,14 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  usePreventBackExit();
 
   const [fontsLoaded, fontError] = useFonts({
-    'Fraunces-Black': Fraunces_800ExtraBold,
-    'Fraunces-Italic': Fraunces_400Regular_Italic,
-    'SpaceGrotesk-Regular': SpaceGrotesk_400Regular,
-    'SpaceGrotesk-Medium': SpaceGrotesk_500Medium,
+    Lato_100Thin,
+    Lato_300Light,
+    Lato_400Regular,
+    Lato_700Bold,
+    Lato_900Black,
   });
 
   if (!fontsLoaded && !fontError) {

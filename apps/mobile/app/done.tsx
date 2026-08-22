@@ -2,6 +2,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
+import { Fonts } from '@/constants/typography';
 
 const C = {
   bg: '#0a0a0b',
@@ -38,7 +39,7 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     textTransform: 'uppercase',
     color: C.ink,
-    fontFamily: 'SpaceGrotesk-Medium',
+    fontFamily: Fonts.bodyMedium,
   },
   center: {
     flex: 1,
@@ -48,7 +49,7 @@ const styles = StyleSheet.create({
   done: {
     color: C.ink,
     fontSize: 30,
-    fontFamily: 'Fraunces-Black',
+    fontFamily: Fonts.logo,
     letterSpacing: 1,
   },
 });

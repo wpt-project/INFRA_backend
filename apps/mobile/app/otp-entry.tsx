@@ -1,5 +1,6 @@
 // app/otp-entry.tsx
 import { onboardingApi } from '@/api/onboardingApi';
+import { Fonts } from '@/constants/typography';
 import { useKeyboardHeight } from '@/hooks/use-keyboard-height';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -403,14 +404,14 @@ const styles = StyleSheet.create({
     fontSize: 30,
     lineHeight: 36,
     marginBottom: 12,
-    fontFamily: 'Lora-Bold',
+    fontFamily: Fonts.logo,
     fontWeight: '700',
   },
   sub: {
     color: C.inkDim,
     fontSize: 15,
     lineHeight: 21,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Fonts.body,
   },
   subRow: {
     flexDirection: 'row',
@@ -422,13 +423,13 @@ const styles = StyleSheet.create({
     color: C.accent,
     fontSize: 15,
     fontWeight: '600',
-    fontFamily: 'Inter-Medium',
+    fontFamily: Fonts.bodyMedium,
   },
   editText: {
     color: C.text,
     fontSize: 13,
     textDecorationLine: 'underline',
-    fontFamily: 'Inter-Medium',
+    fontFamily: Fonts.bodyMedium,
   },
   middle: {
     marginTop: 28,
@@ -452,7 +453,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: C.text,
     fontWeight: '600',
-    fontFamily: 'Inter-Medium',
+    fontFamily: Fonts.bodyMedium,
   },
   boxFilled: { borderColor: C.ink },
   boxError: { borderColor: C.fail },
@@ -465,22 +466,22 @@ const styles = StyleSheet.create({
   error: {
     color: C.fail,
     fontSize: 12.5,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Fonts.body,
   },
   expiry: {
     color: C.inkDim,
     fontSize: 13.5,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Fonts.body,
   },
   expiryTime: {
     color: C.accent,
     fontWeight: '600',
-    fontFamily: 'Inter-Medium',
+    fontFamily: Fonts.bodyMedium,
   },
   expired: {
     color: C.fail,
     fontSize: 12.5,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Fonts.body,
   },
   actionSection: {
     flex: 1,
@@ -501,18 +502,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     letterSpacing: 2,
     textTransform: 'uppercase',
-    fontFamily: 'Inter-Medium',
+    fontFamily: Fonts.bodyMedium,
   },
   resend: { alignItems: 'center', marginTop: 16, paddingVertical: 6 },
   resendText: {
     color: C.inkDim,
     fontSize: 13.5,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Fonts.body,
   },
   resendLink: {
     color: C.accent,
     fontWeight: '600',
-    fontFamily: 'Inter-Medium',
+    fontFamily: Fonts.bodyMedium,
   },
   resendLinkDisabled: { color: C.inkDim },
 });

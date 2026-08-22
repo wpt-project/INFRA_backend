@@ -37,9 +37,9 @@ const COLORS = {
 };
 
 const FONTS = {
-  heading: 'Lora-Bold',
-  body: 'Inter-Regular',
-  bodyMedium: 'Inter-Medium',
+  heading: 'Lato_700Bold',
+  body: 'Lato_400Regular',
+  bodyMedium: 'Lato_700Bold',
 };
 
 // ─── Sample Data ─────────────────────────────────────────────────────────────
