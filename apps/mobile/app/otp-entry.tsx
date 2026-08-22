@@ -2,6 +2,7 @@
 import { onboardingApi } from '@/api/onboardingApi';
 import { useKeyboardHeight } from '@/hooks/use-keyboard-height';
 import { Ionicons } from '@expo/vector-icons';
+import { parsePhoneNumberFromString } from 'libphonenumber-js/mobile';
 import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -209,6 +210,11 @@ export default function OtpEntryScreen() {
   );
 
   // --- OTP input handlers ---
+  const focusFirstEmpty = () => {
+    const idx = otp.findIndex((digit) => digit === '');
+    inputRefs.current[idx === -1 ? 0 : idx]?.focus();
+  };
+
   const handleOtpChange = (text: string, index: number) => {
     const cleaned = text.replace(/\D/g, '');
     if (!cleaned) return;
@@ -257,6 +263,11 @@ export default function OtpEntryScreen() {
 
   const clock = useMemo(() => formatClock(expirySeconds), [expirySeconds]);
 
+  const displayNumber = useMemo(() => {
+    const parsed = parsePhoneNumberFromString(phoneNumber);
+    return parsed ? parsed.formatInternational() : phoneNumber;
+  }, [phoneNumber]);
+
   return (
     <SafeAreaView style={styles.safeRoot} edges={['top']}>
       <LinearGradient
@@ -282,7 +293,7 @@ export default function OtpEntryScreen() {
             <Text style={styles.title}>Enter verification OTP</Text>
             <Text style={styles.sub}>We sent a 6-digit OTP to</Text>
             <View style={styles.subRow}>
-              <Text style={styles.subNum}>{phoneNumber}</Text>
+              <Text style={styles.subNum}>{displayNumber}</Text>
               <Pressable onPress={() => router.back()} disabled={isVerifying} hitSlop={8}>
                 <Text style={styles.editText}>Wrong Number?</Text>
               </Pressable>
@@ -304,6 +315,7 @@ export default function OtpEntryScreen() {
                   value={digit}
                   onChangeText={(text) => handleOtpChange(text, index)}
                   onKeyPress={(e) => handleKeyPress(e, index)}
+                  onPress={focusFirstEmpty}
                   keyboardType="number-pad"
                   textContentType="oneTimeCode"
                   autoComplete="sms-otp"
