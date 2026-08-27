@@ -60,3 +60,4 @@ const PORT = process.env.PORT ?? 4000;
 httpServer.listen(PORT, () => {
   console.log(`@wpt/backend listening on :${PORT}`);
 });
+const ciTestFailure: string = 123;
