@@ -13,3 +13,4 @@ coverage/
 .env.example
 .DS_Store
 *.log
+JARVIS.md

@@ -12,7 +12,6 @@ import { ThemedView } from '@/components/themed-view';
 import { Collapsible } from '@/components/ui/collapsible';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Fonts } from '@/constants/typography';
 
 const C = {
   bg: '#0a0a0b',
@@ -254,12 +253,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 36,
-    fontFamily: Fonts.logo,
+    fontFamily: 'Lato-Black',
     letterSpacing: 2,
   },
   headerSubtitle: {
     fontSize: 14,
-    fontFamily: Fonts.body,
+    fontFamily: 'Lato-Regular',
     letterSpacing: 1,
     marginTop: 4,
   },
@@ -271,12 +270,12 @@ const styles = StyleSheet.create({
   },
   greetingText: {
     fontSize: 22,
-    fontFamily: Fonts.logo,
+    fontFamily: 'Lato-Black',
     marginBottom: 8,
   },
   greetingSubtext: {
     fontSize: 14,
-    fontFamily: Fonts.body,
+    fontFamily: 'Lato-Regular',
     lineHeight: 22,
   },
   featuresGrid: {
@@ -300,12 +299,12 @@ const styles = StyleSheet.create({
   },
   featureTitle: {
     fontSize: 16,
-    fontFamily: Fonts.bodyMedium,
+    fontFamily: 'Lato-Bold',
     flex: 1,
   },
   featureDescription: {
     fontSize: 13,
-    fontFamily: Fonts.body,
+    fontFamily: 'Lato-Regular',
     lineHeight: 20,
     marginBottom: 12,
   },
@@ -331,7 +330,7 @@ const styles = StyleSheet.create({
   },
   platformText: {
     fontSize: 12,
-    fontFamily: Fonts.bodyMedium,
+    fontFamily: 'Lato-Bold',
   },
   linkContainer: {
     flexDirection: 'row',
@@ -341,7 +340,7 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontSize: 13,
-    fontFamily: Fonts.bodyMedium,
+    fontFamily: 'Lato-Bold',
   },
   footerContainer: {
     alignItems: 'center',
@@ -351,7 +350,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 13,
-    fontFamily: Fonts.body,
+    fontFamily: 'Lato-Regular',
   },
   footerBadges: {
     flexDirection: 'row',
@@ -367,7 +366,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 10,
-    fontFamily: Fonts.bodyMedium,
+    fontFamily: 'Lato-Bold',
     letterSpacing: 0.5,
   },
 });

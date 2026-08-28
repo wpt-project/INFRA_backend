@@ -4,8 +4,19 @@ import { COUNTRIES, type Country } from '@/constants/countries';
 import { Fonts } from '@/constants/typography';
 import { useKeyboardHeight } from '@/hooks/use-keyboard-height';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  AsYouType,
+  getCountryCallingCode,
+  getExampleNumber,
+  isValidPhoneNumber,
+  parsePhoneNumberFromString,
+  type CountryCode,
+} from 'libphonenumber-js/mobile';
+import { Metadata, type MetadataJson } from 'libphonenumber-js/core';
+import metadataJson from 'libphonenumber-js/metadata.mobile.json';
+import examples from 'libphonenumber-js/examples.mobile.json';
 import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
+// import { LinearGradient } from 'expo-linear-gradient'; // shimmed for Expo Go
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -36,22 +47,59 @@ const C = {
 
 const INDIA = COUNTRIES.find((c) => c.iso === 'IN') ?? COUNTRIES[0];
 
-function formatDigits(digits: string, format: number[] | null): string {
-  if (!format || !digits) return digits;
-  const parts: string[] = [];
-  let i = 0;
-  for (const g of format) {
-    if (i >= digits.length) break;
-    parts.push(digits.slice(i, i + g));
-    i += g;
+const MAX_DIGITS = 16;
+
+const E164_MAX_DIGITS = 15;
+
+type LengthRange = { min: number; max: number };
+
+type NumberingPlanWithTypes = {
+  possibleLengths(): number[];
+  type?: (t: string) => { possibleLengths(): number[] } | undefined;
+};
+
+const lengthRangeCache = new Map<string, LengthRange | null>();
+
+function callingCode(iso: string): string {
+  try {
+    return getCountryCallingCode(iso as CountryCode);
+  } catch {
+    const fallback = COUNTRIES.find((c) => c.iso === iso);
+    return fallback ? fallback.dial.replace(/\D/g, '') : '';
   }
-  if (i < digits.length) parts.push(digits.slice(i));
-  return parts.join(' ');
 }
 
-function lengthLabel(lengths: number[]): string {
-  if (lengths.length === 1) return `${lengths[0]} digits`;
-  return `${lengths[0]}–${lengths[lengths.length - 1]} digits`;
+function nationalLengthRange(iso: string): LengthRange | null {
+  const cached = lengthRangeCache.get(iso);
+  if (cached !== undefined) return cached;
+
+  let range: LengthRange | null = null;
+  try {
+    const metadata = new Metadata(metadataJson as unknown as MetadataJson);
+    metadata.selectNumberingPlan(iso as CountryCode);
+    const plan = metadata.numberingPlan as unknown as NumberingPlanWithTypes | undefined;
+    const lengths = (plan?.type?.('MOBILE') ?? plan)?.possibleLengths() ?? [];
+    if (lengths.length > 0) {
+      range = { min: Math.min(...lengths), max: Math.max(...lengths) };
+    }
+  } catch {}
+
+  lengthRangeCache.set(iso, range);
+  return range;
+}
+
+function maxLengthFor(iso: string): number {
+  const range = nationalLengthRange(iso);
+  return Math.max(
+    1,
+    Math.min(range ? range.max : MAX_DIGITS, E164_MAX_DIGITS - callingCode(iso).length),
+  );
+}
+
+function localExample(iso: string): { text: string; digits: number } | null {
+  const parsed = getExampleNumber(iso as CountryCode, examples);
+  if (!parsed) return null;
+  return { text: parsed.formatNational(), digits: parsed.nationalNumber.length };
 }
 
 export default function PhoneEntryScreen() {
@@ -104,37 +152,49 @@ export default function PhoneEntryScreen() {
   }, [query]);
 
   const digits = phone.replace(/\D/g, '');
-  const maxLen = selected.lengths[selected.lengths.length - 1];
-  const valid = digits.length > 0 && selected.lengths.includes(digits.length);
+  const code = useMemo(() => callingCode(selected.iso), [selected]);
+  const example = useMemo(() => localExample(selected.iso), [selected]);
+  const maxDigits = useMemo(() => maxLengthFor(selected.iso), [selected]);
+  const fullNumber = `+${code}${digits}`;
+  const valid = digits.length > 0 && isValidPhoneNumber(fullNumber);
+  const lengthHint = useMemo(() => {
+    const range = nationalLengthRange(selected.iso);
+    if (!range) return null;
+    return range.min === range.max
+      ? `${range.min} digits`
+      : `${range.min}–${range.max} digits`;
+  }, [selected]);
 
   const select = (c: Country) => {
     setSelected(c);
     setOpen(false);
     setQuery('');
-    const d = phone.replace(/\D/g, '').slice(0, c.lengths[c.lengths.length - 1]);
-    setPhone(formatDigits(d, c.format));
+    const d = phone.replace(/\D/g, '').slice(0, maxLengthFor(c.iso));
+    setPhone(new AsYouType(c.iso as CountryCode).input(d));
   };
 
   const handlePhoneChange = (text: string) => {
-    let d = text.replace(/\D/g, '');
-    if (d.length > maxLen) d = d.slice(0, maxLen);
-    setPhone(formatDigits(d, selected.format));
+    let d = text.replace(/\D/g, '').slice(0, maxDigits);
+    setPhone(new AsYouType(selected.iso as CountryCode).input(d));
   };
 
   const handleContinue = async () => {
-    const fullNumber = selected.dial + digits;
-
     if (!valid) {
       return;
     }
 
+    const e164 = parsePhoneNumberFromString(fullNumber)?.number ?? fullNumber;
     setIsLoading(true);
 
     try {
-      await onboardingApi.sendOtp({ phoneNumber: fullNumber });
+      // Both calls are independent — fire in parallel to halve the wait.
+      await Promise.all([
+        onboardingApi.acceptLegal(e164),
+        onboardingApi.sendOtp({ phoneNumber: e164 }),
+      ]);
       router.push({
         pathname: '/otp-entry',
-        params: { phoneNumber: fullNumber },
+        params: { phoneNumber: e164, displayPhone: phone },
       });
     } catch {
       Alert.alert('Error', 'Failed to send OTP. Please try again.');
@@ -144,7 +204,7 @@ export default function PhoneEntryScreen() {
   };
 
   return (
-    <LinearGradient
+    <View
       colors={[C.bg2, C.bg]}
       start={{ x: 0.5, y: 0 }}
       end={{ x: 0.5, y: 0.45 }}
@@ -173,14 +233,14 @@ export default function PhoneEntryScreen() {
           <View style={styles.row}>
             <Pressable style={styles.cc} onPress={() => setOpen(true)} accessibilityRole="button">
               <Text style={styles.ccFlag}>{selected.flag}</Text>
-              <Text style={styles.ccCode}>{selected.dial}</Text>
+              <Text style={styles.ccCode}>+{code}</Text>
               <Ionicons name="chevron-down" size={14} color={C.inkDim} />
             </Pressable>
             <TextInput
               style={styles.num}
               value={phone}
               keyboardType="phone-pad"
-              placeholder="Enter phone number"
+              placeholder={example ? `e.g. ${example.text}` : 'Enter phone number'}
               placeholderTextColor={C.inkDim}
               editable={!isLoading}
               onChangeText={handlePhoneChange}
@@ -188,7 +248,9 @@ export default function PhoneEntryScreen() {
           </View>
           {phone.length > 0 && !valid && (
             <Text style={styles.error}>
-              Enter a valid {selected.name} number ({lengthLabel(selected.lengths)})
+              Enter a valid {selected.name} mobile number
+              {lengthHint ? ` — ${lengthHint}` : ''}
+              {example ? `, e.g. ${example.text}` : ''}
             </Text>
           )}
         </View>
@@ -243,7 +305,7 @@ export default function PhoneEntryScreen() {
                 >
                   <View style={styles.rowLeft}>
                     <Text style={styles.rowFlag}>{item.flag}</Text>
-                    <Text style={styles.rowCode}>{item.dial}</Text>
+                    <Text style={styles.rowCode}>+{callingCode(item.iso)}</Text>
                   </View>
                   <Text
                     style={[styles.rowName, item.iso === selected.iso && styles.rowNameActive]}
@@ -257,7 +319,7 @@ export default function PhoneEntryScreen() {
           </Animated.View>
         </View>
       </Modal>
-    </LinearGradient>
+    </View>
   );
 }
 

@@ -1,6 +1,5 @@
 // app/profile-setup.tsx
 import { router, useLocalSearchParams } from 'expo-router';
-import { Fonts } from '@/constants/typography';
 import React, { useState } from 'react';
 import {
   Platform,
@@ -38,7 +37,7 @@ const COLORS = {
 const DEFAULT_ABOUT = "Hey there! I'm using ONB";
 
 export default function ProfileSetupScreen() {
-  const params = useLocalSearchParams<{ phoneNumber: string }>();
+  const params = useLocalSearchParams<{ phoneNumber?: string; displayPhone?: string }>();
   const [name, setName] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
   const [about, setAbout] = useState(DEFAULT_ABOUT);
@@ -115,7 +114,6 @@ export default function ProfileSetupScreen() {
     setIsLoading(true);
     try {
       await onboardingApi.createProfile({
-        phoneNumber: params.phoneNumber || '',
         name: name.trim(),
         photo: photo || undefined,
         about: about.trim() || DEFAULT_ABOUT,
@@ -128,7 +126,7 @@ export default function ProfileSetupScreen() {
     }
   };
 
-  const displayPhone = params.phoneNumber || 'No number provided';
+  const displayPhone = params.displayPhone || params.phoneNumber || '';
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -372,14 +370,14 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '700',
     marginBottom: 4,
-    fontFamily: Fonts.logo,
+    fontFamily: 'Lora-Bold',
     textAlign: 'left',
   },
   sub: {
     color: COLORS.textDim,
     fontSize: 15,
     lineHeight: 22,
-    fontFamily: Fonts.body,
+    fontFamily: 'Inter-Regular',
     textAlign: 'left',
   },
   photoSection: {
@@ -411,7 +409,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
     color: COLORS.text,
     fontWeight: '600',
-    fontFamily: Fonts.bodyMedium,
+    fontFamily: 'Inter-Medium',
   },
   photoLoading: {
     position: 'absolute',
@@ -447,7 +445,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 6,
     fontWeight: '600',
-    fontFamily: Fonts.bodyMedium,
+    fontFamily: 'Inter-Medium',
   },
   inputWrap: {
     borderWidth: 1,
@@ -465,7 +463,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 16,
     minHeight: 48,
-    fontFamily: Fonts.body,
+    fontFamily: 'Inter-Regular',
   },
   aboutInput: {
     minHeight: 60,
@@ -475,7 +473,7 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     fontSize: 12,
     marginTop: 4,
-    fontFamily: Fonts.body,
+    fontFamily: 'Inter-Regular',
   },
   successContainer: {
     flexDirection: 'row',
@@ -487,14 +485,14 @@ const styles = StyleSheet.create({
     color: COLORS.success,
     fontSize: 12,
     fontWeight: '500',
-    fontFamily: Fonts.bodyMedium,
+    fontFamily: 'Inter-Medium',
   },
   charCount: {
     color: COLORS.textDim,
     fontSize: 11,
     textAlign: 'right',
     marginTop: 4,
-    fontFamily: Fonts.body,
+    fontFamily: 'Inter-Regular',
   },
   btn: {
     backgroundColor: COLORS.accent,
@@ -512,14 +510,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     letterSpacing: 2,
     textTransform: 'uppercase',
-    fontFamily: Fonts.bodyMedium,
+    fontFamily: 'Inter-Medium',
   },
   phoneNote: {
     color: COLORS.textDim,
     fontSize: 12,
     textAlign: 'center',
     marginTop: 12,
-    fontFamily: Fonts.body,
+    fontFamily: 'Inter-Regular',
   },
   // Modal styles (unchanged)
   modalOverlay: {
@@ -549,14 +547,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: 4,
-    fontFamily: Fonts.logo,
+    fontFamily: 'Lora-Bold',
   },
   modalSubtitle: {
     color: COLORS.textDim,
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 24,
-    fontFamily: Fonts.body,
+    fontFamily: 'Inter-Regular',
   },
   modalOptions: {
     gap: 12,
@@ -596,13 +594,13 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 15,
     fontWeight: '500',
-    fontFamily: Fonts.bodyMedium,
+    fontFamily: 'Inter-Medium',
   },
   modalOptionDesc: {
     color: COLORS.textDim,
     fontSize: 12,
     marginTop: 1,
-    fontFamily: Fonts.body,
+    fontFamily: 'Inter-Regular',
   },
   removeOption: {
     borderColor: 'rgba(229,72,77,0.3)',
@@ -622,6 +620,6 @@ const styles = StyleSheet.create({
     color: COLORS.textDim,
     fontSize: 16,
     fontWeight: '500',
-    fontFamily: Fonts.bodyMedium,
+    fontFamily: 'Inter-Medium',
   },
 });
