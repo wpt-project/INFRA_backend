@@ -3,7 +3,8 @@
 // "not linked" — it is NOT an access control mechanism. Before this ships,
 // it needs real auth (e.g. middleware.ts checking an admin role/claim on
 // every /admin/* request), otherwise it's just an obscure URL.
+import type React from "react";
 
-export default function AdminDashboardPage() {
+export default function AdminDashboardPage(): React.ReactElement {
   return <main>@wpt/web — admin (unlinked, auth TODO)</main>;
 }
