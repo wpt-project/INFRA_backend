@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     textTransform: 'uppercase',
     color: COLORS.inkFaint,
-    fontFamily: 'Lora-Bold',
+    fontFamily: 'Lato-Bold',
   },
   center: {
     flex: 1,
@@ -162,14 +162,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   wordmark: {
-    fontFamily: 'Lora-Bold',
+    fontFamily: 'Lato-Bold',
     fontSize: 64,
     letterSpacing: 9,
     color: COLORS.ink,
   },
   tagline: {
     marginTop: 6,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Lato-Italic',
     fontStyle: 'italic',
     opacity: 0.6,
     fontSize: 9,
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: COLORS.inkDim,
     fontWeight: '500',
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Lato-Bold',
   },
   ctaLine: {
     width: 34,

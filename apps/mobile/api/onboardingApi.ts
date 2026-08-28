@@ -2,70 +2,88 @@
 //
 // ONB — API layer for onboarding.
 //
-// This is an in-memory MOCK implementation of the backend contract. All state
-// lives in memory and resets on app restart. It stands in for the real
-// Supabase-backed Express backend so the app can run without a network /
-// backend process. The exported types and the `onboardingApi` object shape
-// match the live fetch-based contract exactly, so callers need no changes.
-//is this changed
-// ── Mock-internal state & constants ──
+// SECURITY: All authenticated endpoints now receive the JWT via
+// Authorization header. userId is derived from the token server-side,
+// never sent in request bodies. This prevents IDOR attacks.
 
-const MOCK_OTP_CODE = '123456';
-const MAX_ATTEMPTS = 3;
-const LOCKOUT_MS = 30_000;
-const OTP_EXPIRY_MS = 5 * 60_000;
-const RESEND_COOLDOWN_MS = 30_000;
+import * as SecureStore from 'expo-secure-store';
 
-// Pre-registered numbers → logged-in users route straight to Chats after OTP.
-const REGISTERED_NUMBERS = new Set<string>([
-  '+911234567890',
-  '+919876543210',
-  '+14155552671',
-]);
+const BACKEND_URL =
+  process.env.EXPO_PUBLIC_BACKEND_URL ?? 'http://localhost:4000';
+const API_BASE = `${BACKEND_URL}/api/v1/onboarding`;
+const PROFILE_BASE = `${BACKEND_URL}/api/v1/profile`;
 
-// Legal acceptance is durable app-lifetime state (separate from an OTP session).
-const acceptedLegalNumbers = new Set<string>();
+// ── Unauthenticated POST (OTP send, verify, accept-legal, refresh) ──
+async function apiPost<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
 
-type OtpSession = {
-  phoneNumber: string;
-  sentAt: number;
-  attemptsUsed: number;
-  lockedUntil: number | null;
-  code: string;
-  legalAccepted: boolean;
-};
+  const data = await res.json();
 
-let activeOtpSession: OtpSession | null = null;
+  if (!res.ok) {
+    const error = new Error(data.error || `HTTP ${res.status}`);
+    (error as any).status = res.status;
+    (error as any).body = data;
+    throw error;
+  }
 
-type MockProfile = {
-  id: string;
-  name: string;
-  photo?: string;
-  about: string;
-  phoneNumber: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-const registeredProfiles = new Map<string, MockProfile>();
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return data as T;
 }
 
-function now(): number {
-  return Date.now();
+// ── Authenticated POST (profile, session/check) ──
+async function apiAuthPost<T>(path: string, body: unknown): Promise<T> {
+  const token = await SecureStore.getItemAsync('accessToken');
+
+  const res = await fetch(`${PROFILE_BASE}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    const error = new Error(data.error || `HTTP ${res.status}`);
+    (error as any).status = res.status;
+    (error as any).body = data;
+    throw error;
+  }
+
+  return data as T;
 }
 
-function issueToken(): string {
-  return `mock_token_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+// ── Authenticated POST for onboarding routes (session/check) ──
+async function apiOnboardingAuthPost<T>(path: string, body: unknown): Promise<T> {
+  const token = await SecureStore.getItemAsync('accessToken');
+
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    const error = new Error(data.error || `HTTP ${res.status}`);
+    (error as any).status = res.status;
+    (error as any).body = data;
+    throw error;
+  }
+
+  return data as T;
 }
 
-function findProfileByPhone(phoneNumber: string): MockProfile | undefined {
-  return registeredProfiles.get(phoneNumber);
-}
-
-// ── Types (mirror the live API contract) ──
+// ── Types ──
 
 export type SendOtpParams = { phoneNumber: string };
 export type SendOtpResult = { success: true };
@@ -139,118 +157,27 @@ export type LoginHandoffResult = {
   previousDevicesLoggedOut: number;
 };
 
-// ── Mock API implementation ──
-
 export const onboardingApi = {
   async sendOtp({ phoneNumber }: SendOtpParams): Promise<SendOtpResult> {
-    await delay(400);
-
-    if (!acceptedLegalNumbers.has(phoneNumber)) {
-      throw Object.assign(new Error('LEGAL_NOT_ACCEPTED'), { status: 403 });
-    }
-
-    if (activeOtpSession?.phoneNumber === phoneNumber) {
-      const elapsed = now() - activeOtpSession.sentAt;
-      if (elapsed < RESEND_COOLDOWN_MS) {
-        throw Object.assign(new Error('RESEND_COOLDOWN_ACTIVE'), { status: 429 });
-      }
-    }
-
-    activeOtpSession = {
-      phoneNumber,
-      sentAt: now(),
-      attemptsUsed: 0,
-      lockedUntil: null,
-      code: MOCK_OTP_CODE,
-      legalAccepted: true,
-    };
-
-    return { success: true };
+    return apiPost<SendOtpResult>('/otp/send', { phoneNumber });
   },
 
   async verifyOtp({ phoneNumber, code }: VerifyOtpParams): Promise<VerifyOtpResult> {
-    await delay(400);
-
-    if (!activeOtpSession || activeOtpSession.phoneNumber !== phoneNumber) {
-      throw Object.assign(new Error('NO_ACTIVE_SESSION'), { status: 404 });
-    }
-
-    const session = { ...activeOtpSession };
-
-    if (!session.legalAccepted) {
-      throw Object.assign(new Error('LEGAL_NOT_ACCEPTED'), { status: 403 });
-    }
-
-    if (session.lockedUntil && now() < session.lockedUntil) {
-      return {
-        status: 'locked_out',
-        secondsRemaining: Math.ceil((session.lockedUntil - now()) / 1000),
-      };
-    }
-
-    if (now() - session.sentAt > OTP_EXPIRY_MS) {
-      activeOtpSession = null;
-      return { status: 'expired' };
-    }
-
-    if (code === session.code) {
-      activeOtpSession = null;
-
-      const userId = `user_${Date.now()}`;
-      const sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const displayPhone = session.phoneNumber;
-      const existing = findProfileByPhone(displayPhone);
-
-      // Pre-registered users already have a profile → go straight to Chats.
-      const routing: 'chats' | 'profile_setup' =
-        existing || REGISTERED_NUMBERS.has(displayPhone) ? 'chats' : 'profile_setup';
-
-      return {
-        status: 'success',
-        routing,
-        accessToken: issueToken(),
-        refreshToken: issueToken(),
-        userId,
-        sessionId,
-      };
-    }
-
-    activeOtpSession!.attemptsUsed += 1;
-    const attemptsRemaining = MAX_ATTEMPTS - activeOtpSession!.attemptsUsed;
-
-    if (attemptsRemaining <= 0) {
-      activeOtpSession!.lockedUntil = now() + LOCKOUT_MS;
-      return {
-        status: 'attempts_exhausted',
-      };
-    }
-
-    return { status: 'wrong_code', attemptsRemaining };
+    return apiPost<VerifyOtpResult>('/otp/verify', { phoneNumber, code });
   },
 
   async checkExistingUser({ phoneNumber }: CheckExistingUserParams): Promise<CheckExistingUserResult> {
-    await delay(300);
-    return { exists: REGISTERED_NUMBERS.has(phoneNumber) || registeredProfiles.has(phoneNumber) };
+    return apiPost<CheckExistingUserResult>('/check-existing-user', { phoneNumber });
   },
 
   async handleLoginHandoff({
     refreshToken,
     deviceInfo,
   }: LoginHandoffParams): Promise<LoginHandoffResult> {
-    await delay(300);
-
-    if (!refreshToken) {
-      throw Object.assign(new Error('INVALID_REFRESH_TOKEN'), { status: 401 });
-    }
-
-    return {
-      success: true,
-      sessionId: `session_${Date.now()}`,
-      accessToken: issueToken(),
-      refreshToken: issueToken(),
-      message: 'Logged in on this device. Other devices were logged out.',
-      previousDevicesLoggedOut: 1,
-    };
+    return apiPost<LoginHandoffResult>('/login/handoff', {
+      refreshToken,
+      deviceInfo,
+    });
   },
 
   async checkSessionValidity({
@@ -258,107 +185,36 @@ export const onboardingApi = {
   }: {
     deviceId: string;
   }): Promise<{ isValid: boolean; message?: string }> {
-    await delay(250);
-
-    // Mock always treats the local session as valid — no remote revocation exists.
-    if (!deviceId) {
-      return { isValid: false, message: 'Missing device id' };
-    }
-    return { isValid: true };
+    return apiOnboardingAuthPost<{ isValid: boolean; message?: string }>('/session/check', {
+      deviceId,
+    });
   },
 
   async createProfile({ name, photo, about }: CreateProfileParams): Promise<CreateProfileResult> {
-    await delay(500);
-
-    if (!name || name.trim().length === 0) {
-      throw Object.assign(new Error('NAME_REQUIRED'), { status: 400 });
-    }
-
-    const id = `user_${Date.now()}`;
-    const profile: MockProfile = {
-      id,
-      name: name.trim(),
+    return apiAuthPost<CreateProfileResult>('/create', {
+      name,
       photo,
-      about: about.trim() || "Hey there! I'm using ONB",
-      phoneNumber: `+${Math.floor(1000000000 + Math.random() * 8999999999)}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    registeredProfiles.set(profile.phoneNumber, profile);
-
-    return {
-      success: true,
-      userId: id,
-      profile: {
-        id: profile.id,
-        name: profile.name,
-        photo: profile.photo,
-        about: profile.about,
-        phoneNumber: profile.phoneNumber,
-        createdAt: profile.createdAt,
-      },
-    };
+      about,
+    });
   },
 
   async getProfile(): Promise<GetProfileResult> {
-    await delay(300);
-
-    const profile = registeredProfiles.values().next().value as MockProfile | undefined;
-    if (!profile) {
-      throw Object.assign(new Error('PROFILE_NOT_FOUND'), { status: 404 });
-    }
-
-    return { ...profile };
+    return apiAuthPost<GetProfileResult>('/get', {});
   },
 
   async updateProfile({ name, photo, about }: UpdateProfileParams): Promise<UpdateProfileResult> {
-    await delay(300);
-
-    const profile = registeredProfiles.values().next().value as MockProfile | undefined;
-    if (!profile) {
-      throw Object.assign(new Error('PROFILE_NOT_FOUND'), { status: 404 });
-    }
-
-    if (name !== undefined && name.trim().length === 0) {
-      throw Object.assign(new Error('NAME_REQUIRED'), { status: 400 });
-    }
-
-    if (name !== undefined) profile.name = name.trim();
-    if (photo !== undefined) profile.photo = photo;
-    if (about !== undefined) profile.about = about.trim();
-    profile.updatedAt = new Date().toISOString();
-
-    return { success: true, profile: { ...profile } };
+    return apiAuthPost<UpdateProfileResult>('/update', {
+      name,
+      photo,
+      about,
+    });
   },
 
   async acceptLegal(phoneNumber: string): Promise<{ success: true }> {
-    await delay(200);
-    acceptedLegalNumbers.add(phoneNumber);
-    if (activeOtpSession?.phoneNumber === phoneNumber) {
-      activeOtpSession.legalAccepted = true;
-    }
-    return { success: true };
+    return apiPost<{ success: true }>('/accept-legal', { phoneNumber });
   },
 
   async refreshTokens(refreshToken: string): Promise<{ accessToken: string }> {
-    await delay(200);
-    if (!refreshToken) {
-      throw Object.assign(new Error('INVALID_REFRESH_TOKEN'), { status: 401 });
-    }
-    return { accessToken: issueToken() };
-  },
-};
-
-// ── Dev/test helpers (not used by screens) ──
-export const mockState = {
-  acceptedLegalNumbers,
-  clearOtpSession() {
-    activeOtpSession = null;
-  },
-  clearAll() {
-    activeOtpSession = null;
-    acceptedLegalNumbers.clear();
-    registeredProfiles.clear();
+    return apiPost<{ accessToken: string }>('/refresh', { refreshToken });
   },
 };

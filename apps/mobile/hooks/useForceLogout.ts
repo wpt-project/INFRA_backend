@@ -16,17 +16,10 @@ import { router } from 'expo-router';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'http://localhost:4000';
 
-// Mock mode: when enabled (default), skip the real socket.io connection entirely.
-// The backend is disabled for now — no live force_logout pushes are expected.
-const USE_MOCK = process.env.EXPO_PUBLIC_USE_MOCK !== 'false';
-
 export function useForceLogout(userId: string | null, deviceId: string | null) {
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
-    // Backend disabled in mock mode — do not open a real websocket.
-    if (USE_MOCK) return;
-
     if (!userId || !deviceId) return;
 
     let cancelled = false;

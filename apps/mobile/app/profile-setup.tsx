@@ -1,4 +1,4 @@
-// app/profile-setup.tsx
+﻿// app/profile-setup.tsx
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -240,7 +240,7 @@ export default function ProfileSetupScreen() {
               onPress={handleContinue}
             >
               <Text style={styles.btnText}>
-                {isLoading ? 'Setting up…' : 'CONTINUE'}
+                {isLoading ? 'Setting upâ€¦' : 'CONTINUE'}
               </Text>
             </Pressable>
 
@@ -328,7 +328,7 @@ export default function ProfileSetupScreen() {
   );
 }
 
-// ─── Styles – content aligned to top ───
+// â”€â”€â”€ Styles â€“ content aligned to top â”€â”€â”€
 const styles = StyleSheet.create({
   root: {
     flex: 1,
@@ -353,9 +353,9 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 4,              // 👈 minimal top padding – content starts near top
+    paddingTop: 4,              // ðŸ‘ˆ minimal top padding â€“ content starts near top
     paddingBottom: 40,
-    // no justifyContent – content sticks to top
+    // no justifyContent â€“ content sticks to top
   },
   content: {
     width: '100%',
@@ -370,14 +370,14 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '700',
     marginBottom: 4,
-    fontFamily: 'Lora-Bold',
+    fontFamily: 'Lato-Bold',
     textAlign: 'left',
   },
   sub: {
     color: COLORS.textDim,
     fontSize: 15,
     lineHeight: 22,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Lato-Regular',
     textAlign: 'left',
   },
   photoSection: {
@@ -409,7 +409,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
     color: COLORS.text,
     fontWeight: '600',
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Lato-Bold',
   },
   photoLoading: {
     position: 'absolute',
@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 6,
     fontWeight: '600',
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Lato-Bold',
   },
   inputWrap: {
     borderWidth: 1,
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 16,
     minHeight: 48,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Lato-Regular',
   },
   aboutInput: {
     minHeight: 60,
@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     fontSize: 12,
     marginTop: 4,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Lato-Regular',
   },
   successContainer: {
     flexDirection: 'row',
@@ -485,14 +485,14 @@ const styles = StyleSheet.create({
     color: COLORS.success,
     fontSize: 12,
     fontWeight: '500',
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Lato-Bold',
   },
   charCount: {
     color: COLORS.textDim,
     fontSize: 11,
     textAlign: 'right',
     marginTop: 4,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Lato-Regular',
   },
   btn: {
     backgroundColor: COLORS.accent,
@@ -510,14 +510,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     letterSpacing: 2,
     textTransform: 'uppercase',
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Lato-Bold',
   },
   phoneNote: {
     color: COLORS.textDim,
     fontSize: 12,
     textAlign: 'center',
     marginTop: 12,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Lato-Regular',
   },
   // Modal styles (unchanged)
   modalOverlay: {
@@ -547,14 +547,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: 4,
-    fontFamily: 'Lora-Bold',
+    fontFamily: 'Lato-Bold',
   },
   modalSubtitle: {
     color: COLORS.textDim,
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 24,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Lato-Regular',
   },
   modalOptions: {
     gap: 12,
@@ -594,13 +594,13 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 15,
     fontWeight: '500',
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Lato-Bold',
   },
   modalOptionDesc: {
     color: COLORS.textDim,
     fontSize: 12,
     marginTop: 1,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Lato-Regular',
   },
   removeOption: {
     borderColor: 'rgba(229,72,77,0.3)',
@@ -620,6 +620,6 @@ const styles = StyleSheet.create({
     color: COLORS.textDim,
     fontSize: 16,
     fontWeight: '500',
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Lato-Bold',
   },
 });
