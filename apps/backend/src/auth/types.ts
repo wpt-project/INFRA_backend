@@ -18,6 +18,12 @@ export interface AccessTokenPayload {
   deviceId: DeviceId;
   /** Session ID — links to DB-2.6 sessions table for revocation. */
   sid: string;
+  /**
+   * Audience (LOGIN-3.11) — always `"app"` for end-user access tokens.
+   * Distinct from dashboard tokens which carry `aud: "dashboard"` so
+   * centralized audience-enforcement middleware can reject cross-use.
+   */
+  aud: "app";
   /** Issued-at (JWT-registered claim, set automatically by jose). */
   iat: number;
   /** Expiry — exactly 1 hour from issuance (§7.1). */

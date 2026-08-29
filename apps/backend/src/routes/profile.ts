@@ -10,7 +10,6 @@ import { Router, Request, Response } from "express";
 import { eq } from "drizzle-orm";
 import { getDb } from "../db/index.js";
 import { users } from "../db/users-schema.js";
-import { requireAuth } from "../middleware/auth.js";
 import {
   sanitizeProfileField,
   MAX_NAME_LENGTH,
@@ -20,8 +19,8 @@ import {
 
 const router: Router = Router();
 
-// All profile routes require authentication
-router.use(requireAuth);
+// Note (LOGIN-3.11): audience enforcement (aud: "app") for /profile is applied
+// centrally at the group level in src/index.ts via requireAudience("app").
 
 // ──────────────────────────────────────────────────
 // POST /profile/create

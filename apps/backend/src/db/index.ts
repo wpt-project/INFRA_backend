@@ -1,5 +1,6 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
+import type { PoolConfig } from "pg";
 import * as schema from "./schema.js";
 
 const { Pool } = pg;
@@ -20,7 +21,25 @@ export function getDb() {
     throw new Error("DATABASE_URL is not set");
   }
 
-  const pool = new Pool({ connectionString });
+  // Force IPv4 — pg prefers IPv6, which fails with ECONNREFUSED on networks
+  // without an IPv6 route to the Supabase host (same fix as the migration
+  // and seed scripts).
+  const pool = new Pool({
+    connectionString,
+    family: 4,
+  } as PoolConfig);
+
+  // Honor APP_TIMEZONE for per-connection sessions so SQL-level now()/reads
+  // report local time. Physical storage remains UTC (timestamptz is correct).
+  const tz = process.env.APP_TIMEZONE?.trim();
+  if (tz) {
+    pool.on("connect", (client) => {
+      client.query(`SET TIME ZONE '${tz.replace(/'/g, "''")}'`).catch(() => {
+        /* non-fatal: keep UTC session */
+      });
+    });
+  }
+
   _db = drizzle(pool, { schema });
   return _db;
 }

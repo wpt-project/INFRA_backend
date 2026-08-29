@@ -38,6 +38,12 @@ import { deliverOtpCode } from "../sms/sender.js";
 import { requireAuth } from "../middleware/auth.js";
 import { rateLimit } from "../middleware/rate-limit.js";
 import { isValidE164 } from "../middleware/validation.js";
+import {
+  detectPlatform,
+  getVerificationPath,
+  getClientIp,
+  logOtpRequest,
+} from "../audit/audit-logger.js";
 
 const router: Router = Router();
 
@@ -259,6 +265,27 @@ router.post(
       // configured; otherwise prints the code to the server console for dev.
       await deliverOtpCode(phoneNumber, rawCode);
 
+      // 🔴 LOGIN-3.12 — Record which verification path fired (internal only).
+      // The platform is detected from headers and written to `audit_logs`.
+      // It is NEVER returned to the client — the response below is identical
+      // for every platform (PRD §5.2, Scenario 4.1 "invisibility requirement").
+      // Non-blocking: a logging failure must not change the OTP response.
+      const platformCtx = {
+        userAgent: req.headers["user-agent"],
+        androidSimAvailable:
+          (req.headers["x-android-sim-available"] as string) ?? undefined,
+      };
+      const otpPlatform = detectPlatform(platformCtx);
+      await logOtpRequest({
+        phoneNumber,
+        platform: otpPlatform,
+        verificationPath: getVerificationPath(otpPlatform),
+        timestamp: new Date(),
+        ipAddress: getClientIp(req),
+        userAgent: req.headers["user-agent"] ?? undefined,
+      });
+
+      // ⚠️ IDENTICAL response for ALL platforms — NEVER include platform info.
       res.json({ success: true });
     } catch (err) {
       console.error("POST /otp/send error");

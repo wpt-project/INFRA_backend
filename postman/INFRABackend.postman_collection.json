@@ -1,0 +1,453 @@
+{
+  "info": {
+    "name": "WPT Backend API (@wpt/backend)",
+    "_postman_id": "wpt-backend-login-3-12",
+    "description": "Complete API collection for the WPT backend (apps/backend).\n\nFolders:\n- Health: liveness endpoint\n- Onboarding: public end-user OTP flows (aud: app tokens)\n- Profile: end-user profile CRUD (requires accessToken, aud: app)\n- Admin: dashboard login/session + audit (requires dashboardToken, aud: dashboard)\n- Debug: DEV-only DB viewer (DEBUG=1 + localhost only)\n\nAuth:\n- End-user requests: set `accessToken` variable (from OTP verify / refresh / handoff).\n- Dashboard requests: set `dashboardAccessToken` variable (from Admin > Login).\n\nEnvironments: create one with `baseUrl = http://localhost:4000`.\n\nRate limits (per 60s): otp/send=3, otp/verify=5, admin/login=10.",
+    "schema": "https://schema.postman.com/collection/json/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000", "type": "string" },
+    { "key": "accessToken", "value": "", "type": "string" },
+    { "key": "refreshToken", "value": "", "type": "string" },
+    { "key": "dashboardAccessToken", "value": "", "type": "string" },
+    { "key": "dashboardRefreshToken", "value": "", "type": "string" },
+    { "key": "phoneNumber", "value": "+911234567890", "type": "string" },
+    { "key": "otpCode", "value": "123456", "type": "string" },
+    { "key": "adminEmail", "value": "samson@wpt.internal", "type": "string" },
+    { "key": "adminPassword", "value": "Admin@123", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /api/v1/health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "health"]
+            },
+            "description": "Liveness check. Public."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Onboarding (Users)",
+      "item": [
+        {
+          "name": "POST /onboarding/accept-legal",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"{{phoneNumber}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/onboarding/accept-legal",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "onboarding", "accept-legal"]
+            },
+            "description": "Record legal terms acceptance. Required once before OTP flows. Public."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /onboarding/otp/send",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "User-Agent", "value": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36" },
+              { "key": "x-android-sim-available", "value": "true", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"{{phoneNumber}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/onboarding/otp/send",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "onboarding", "otp", "send"]
+            },
+            "description": "Send an OTP. Rate-limited (3/60s per phone/IP). The 6-digit code is printed to the server console in dev.\n\nOptional headers: `x-android-sim-available: true` + Android User-Agent triggers the android_sim audit path (internal only). Response is identical for all platforms."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /onboarding/otp/verify",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"{{phoneNumber}}\",\n  \"code\": \"{{otpCode}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/onboarding/otp/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "onboarding", "otp", "verify"]
+            },
+            "description": "Verify an OTP. On success issues an app access token (aud: app) + refresh token and creates/returns the session.\n\nSet `accessToken` / `refreshToken` variables from the response, e.g. a collection test-script.\nRate-limited (5/60s per phone/IP)."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /onboarding/check-existing-user",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"{{phoneNumber}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/onboarding/check-existing-user",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "onboarding", "check-existing-user"]
+            },
+            "description": "Returns boolean `exists` only (never leaks the userId). Public."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /onboarding/refresh",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/onboarding/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "onboarding", "refresh"]
+            },
+            "description": "Exchange a valid refresh token for a fresh app access token."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /onboarding/login/handoff",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\",\n  \"deviceInfo\": {\n    \"deviceId\": \"device_1\",\n    \"deviceName\": \"Pixel 8\",\n    \"platform\": \"android\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/onboarding/login/handoff",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "onboarding", "login", "handoff"]
+            },
+            "description": "New-device login. Requires a valid refresh token proving account ownership. Revokes previous sessions on that account."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /onboarding/session/check",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"device_1\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/onboarding/session/check",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "onboarding", "session", "check"]
+            },
+            "description": "Check whether a device session is still valid (requires a valid app access token, aud: app)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Profile (Users)",
+      "item": [
+        {
+          "name": "POST /profile/create",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Samson\",\n  \"photo\": \"https://example.com/avatar.jpg\",\n  \"about\": \"Hey there! I'm using WPT\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/create",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "profile", "create"]
+            },
+            "description": "Create/complete the end-user profile. Requires app access token (aud: app). userId comes from the token, never the body."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /profile/get",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/get",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "profile", "get"]
+            },
+            "description": "Fetch the current user's profile. Requires app access token (aud: app)."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /profile/update",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Samson Updated\",\n  \"about\": \"New about text\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/update",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "profile", "update"]
+            },
+            "description": "Partially update the current user's profile. Only provided fields are updated. Requires app access token (aud: app)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin (Dashboard)",
+      "item": [
+        {
+          "name": "POST /admin/login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "login"]
+            },
+            "description": "Dashboard admin login. Issues a dashboard token (aud: dashboard). Set `dashboardAccessToken` / `dashboardRefreshToken` variables from the response. Rate-limited (10/60s per IP)."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /admin/refresh",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{dashboardRefreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "refresh"]
+            },
+            "description": "Exchange a dashboard refresh token for a fresh dashboard access token."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /admin/me",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{dashboardAccessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "me"]
+            },
+            "description": "Current admin profile. Requires dashboard token (aud: dashboard)."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /admin/logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{dashboardAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "logout"]
+            },
+            "description": "Revoke the current dashboard session. Requires dashboard token."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /admin/logout-all",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{dashboardAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/logout-all",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "logout-all"]
+            },
+            "description": "Force-logout all sessions for the current admin. Requires dashboard token."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /admin/audit/otp",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{dashboardAccessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/audit/otp?limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "audit", "otp"],
+              "query": [
+                { "key": "limit", "value": "50" }
+              ]
+            },
+            "description": "LOGIN-3.12 — OTP platform-detection audit log. Requires dashboard token. Timestamps returned in local time (APP_TIMEZONE)."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /admin/admins",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{dashboardAccessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/admins",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "admins"]
+            },
+            "description": "List dashboard admins. Requires dashboard token with role: owner."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /admin/admins",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{dashboardAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/admins",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "admins"]
+            },
+            "description": "Create a dashboard admin (owner only). Placeholder endpoint — returns success stub."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /admin/admins/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{dashboardAccessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/admins/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "admins", ":id"]
+            },
+            "description": "Delete a dashboard admin (owner only). Placeholder endpoint — returns success stub."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Debug (DEV only)",
+      "item": [
+        {
+          "name": "GET /api/v1/debug/tables",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/debug/tables",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "debug", "tables"]
+            },
+            "description": "DEV-only database viewer. Requires DEBUG=1 env, non-production NODE_ENV, and a localhost source IP. Remove before production."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "noauth"
+  }
+}

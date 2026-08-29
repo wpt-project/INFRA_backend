@@ -19,6 +19,24 @@ import type { AccessTokenPayload, IssueAccessTokenParams } from "./types.js";
 const ACCESS_TOKEN_EXPIRY = "1h";
 
 const ISSUER = "wpt-backend";
+/** The audience that identifies end-user (app) access tokens. */
+const APP_AUD = "app";
+
+/**
+ * LOGIN-3.11 — Thrown when a token's signature and issuer are valid but its
+ * audience is NOT `"app"` (e.g. a dashboard `aud: "dashboard"` token re-signed
+ * with the app secret, or a leak between the two systems). Middleware maps this
+ * to HTTP 403 so the audience mismatch is surfaced distinctly from a generic
+ * invalid token (HTTP 401).
+ */
+export class AppAudienceError extends Error {
+  constructor(readonly receivedAudience: string) {
+    super(
+      `Token audience "${receivedAudience}" is not the expected app audience`,
+    );
+    this.name = "AppAudienceError";
+  }
+}
 
 function getSecret(): Uint8Array {
   const secret = process.env.JWT_SECRET;
@@ -49,6 +67,7 @@ export async function issueAccessToken({
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setSubject(userId)
     .setIssuer(ISSUER)
+    .setAudience(APP_AUD)
     .setIssuedAt()
     .setExpirationTime(ACCESS_TOKEN_EXPIRY)
     .sign(secret);
@@ -79,6 +98,27 @@ export async function verifyAccessToken(
 }
 
 /**
+ * LOGIN-3.11 — Return the `aud` claim from a JWT **without** verifying its
+ * signature.
+ *
+ * USE ONLY for logging / diagnosing which token family a request carried.
+ * Never rely on it for authorization — always use `verifyAccessToken` /
+ * `verifyDashboardAccessToken` (which enforce the audience structurally).
+ */
+export function getAudience(token: string): string | null {
+  try {
+    const [, payloadB64] = token.split(".");
+    if (!payloadB64) return null;
+    const decoded = JSON.parse(
+      Buffer.from(payloadB64, "base64url").toString("utf-8"),
+    ) as { aud?: unknown };
+    return typeof decoded.aud === "string" ? decoded.aud : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Decode a JWT **without** verifying the signature.
  *
  * USE ONLY for debugging / logging. Never trust the result for
@@ -95,9 +135,17 @@ function toAccessTokenPayload(raw: JWTPayload): AccessTokenPayload {
   const deviceId =
     typeof raw.deviceId === "string" ? raw.deviceId : undefined;
   const sid = typeof raw.sid === "string" ? raw.sid : undefined;
+  const aud = raw.aud;
   const iat = typeof raw.iat === "number" ? raw.iat : undefined;
   const exp = typeof raw.exp === "number" ? raw.exp : undefined;
   const iss = typeof raw.iss === "string" ? raw.iss : undefined;
+
+  // LOGIN-3.11 — The audience is the structural-security boundary: a valid
+  // signature with the wrong audience is reported distinctly (AppAudienceError)
+  // so middleware can return 403 instead of a generic 401.
+  if (aud !== APP_AUD) {
+    throw new AppAudienceError(typeof aud === "string" ? aud : String(aud));
+  }
 
   if (!sub || !deviceId || !sid || iat === undefined || exp === undefined || !iss) {
     throw new Error(
@@ -109,6 +157,7 @@ function toAccessTokenPayload(raw: JWTPayload): AccessTokenPayload {
     sub,
     deviceId,
     sid,
+    aud: APP_AUD,
     iat,
     exp,
     iss,

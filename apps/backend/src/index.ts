@@ -8,14 +8,27 @@ import { API_VERSION, SOCKET_NAMESPACE } from "@wpt/shared";
 import onboardingRoutes from "./routes/onboarding.js";
 import profileRoutes from "./routes/profile.js";
 import debugRoutes from "./routes/debug.js";
+import adminRoutes from "./routes/admin.js";
 import {
   initSocketRegistry,
   registerSocket,
   unregisterSocket,
 } from "./ws/socket-registry.js";
-import { verifyAccessToken } from "./auth/jwt.js";
+import { verifyAccessToken, AppAudienceError } from "./auth/jwt.js";
+import { requireAudience } from "./middleware/auth.middleware.js";
 
 const app = express();
+
+// ── Reverse proxy / real client IP ──
+// When deployed behind a reverse proxy (e.g. Nginx, CloudFlare, a PaaS), the
+// real client IP is in the `X-Forwarded-For` header. Express only trusts it
+// when `trust proxy` is set; otherwise req.ip is the proxy/loopback address.
+// For safety this is OFF by default (direct connections). Set TRUST_PROXY=1
+// only when the app truly sits behind a trusted proxy. See Express docs on
+// the trust proxy setting (set to 1 = trust the immediate upstream hop).
+if (process.env.TRUST_PROXY === "1") {
+  app.set("trust proxy", 1);
+}
 
 // ── Security headers ──
 app.use(helmet());
@@ -42,8 +55,12 @@ app.get(`/api/${API_VERSION}/health`, (_req, res) => {
 });
 
 app.use(`/api/${API_VERSION}/onboarding`, onboardingRoutes);
-app.use(`/api/${API_VERSION}/profile`, profileRoutes);
+// App endpoints: enforce aud "app" centrally (LOGIN-3.11).
+app.use(`/api/${API_VERSION}/profile`, requireAudience("app"), profileRoutes);
 app.use(`/api/${API_VERSION}/debug`, debugRoutes);
+// Dashboard endpoints: auth enforced centrally inside admin router (login/refresh
+// are public and share the mount, so the gate sits after them in admin.ts).
+app.use(`/api/${API_VERSION}/admin`, adminRoutes);
 
 const httpServer = createServer(app);
 
@@ -70,7 +87,13 @@ io.use(async (socket, next) => {
       return;
     }
     next();
-  } catch {
+  } catch (err) {
+    // LOGIN-3.11 — the realtime channel is an app endpoint: reject audience
+    // mismatches (e.g. aud: "dashboard" tokens) explicitly.
+    if (err instanceof AppAudienceError) {
+      next(new Error(`Invalid token audience: expected app, received ${err.receivedAudience}`));
+      return;
+    }
     next(new Error("Invalid token"));
   }
 });
