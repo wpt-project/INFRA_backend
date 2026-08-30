@@ -13,7 +13,6 @@
  */
 
 import { Router, type Request, type Response } from "express";
-import { eq } from "drizzle-orm";
 import { getDb } from "../db/index.js";
 import { dashboardAdmins } from "../db/dashboard-admins-schema.js";
 import {

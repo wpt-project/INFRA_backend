@@ -1,8 +1,12 @@
 const { Client } = require("pg");
-const c = new Client({
-  connectionString:
-    "postgresql://postgres:WhitePixcelTechnologies@db.ukmsgzvkvcsbhtlmvswr.supabase.co:6543/postgres",
-});
+
+// Credentials come from the environment — never hardcode DB secrets in the repo.
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+  console.error("DATABASE_URL is not set. Set it before running this script.");
+  process.exit(1);
+}
+const c = new Client({ connectionString: DATABASE_URL });
 
 (async () => {
   await c.connect();

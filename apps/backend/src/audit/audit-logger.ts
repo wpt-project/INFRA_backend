@@ -95,8 +95,6 @@ function resolveTimezone(): string {
 
 /** Format a timestamp as a local-time ISO string, e.g. 2026-08-28T22:09:38.123+05:30. */
 export function toLocalIsoTimestamp(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-
   const tz = resolveTimezone();
   const dtf = new Intl.DateTimeFormat("en-US", {
     timeZone: tz,
@@ -118,7 +116,7 @@ export function toLocalIsoTimestamp(date: Date): string {
   const hour = parts.hour === "24" ? "00" : parts.hour;
   let offset = "+00:00";
   const m = (parts.timeZoneName ?? "").match(/GMT([+-]\d{2}:\d{2})/);
-  if (m) offset = m[1];
+  if (m && m[1]) offset = m[1];
 
   return `${parts.year}-${parts.month}-${parts.day}T${hour}:${parts.minute}:${parts.second}.${parts.fractionalSecond ?? "000"}${offset}`;
 }

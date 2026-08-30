@@ -26,9 +26,8 @@ import {
   issueAccessToken,
   issueRefreshToken,
   validateRefreshToken,
-  revokeAllUserSessions,
 } from "../auth/index.js";
-import { getDb } from "../db/index.js";
+import { getDb, type AppDb } from "../db/index.js";
 import { sessions } from "../db/sessions-schema.js";
 import { users } from "../db/users-schema.js";
 import { otpVerifications } from "../db/otp-verifications-schema.js";
@@ -147,7 +146,7 @@ async function executeHandoffTransaction({
     const { refreshToken, sessionId } = await issueRefreshToken({
       userId,
       deviceId,
-      db: tx as any,
+      db: tx as unknown as AppDb,
     });
 
     const accessToken = await issueAccessToken({
@@ -167,26 +166,40 @@ async function executeHandoffTransaction({
 // ──────────────────────────────────────────────────
 // POST /onboarding/accept-legal
 // ──────────────────────────────────────────────────
-router.post("/accept-legal", async (req: Request, res: Response) => {
-  try {
-    const { phoneNumber } = req.body as { phoneNumber?: string };
+router.post("/accept-legal", rateLimit({
+    maxRequests: 10,
+    windowMs: 60_000,
+    keyFn: (req) => `accept-legal:${req.ip ?? "unknown"}`,
+    message: "Too many requests. Please try again later.",
+  }), async (req: Request, res: Response) => {
+    try {
+      const { phoneNumber } = req.body as { phoneNumber?: string };
 
-    if (!phoneNumber || typeof phoneNumber !== "string") {
-      res.status(400).json({ error: "phoneNumber is required" });
-      return;
+      if (!phoneNumber || typeof phoneNumber !== "string") {
+        res.status(400).json({ error: "phoneNumber is required" });
+        return;
+      }
+
+      if (!isValidE164(phoneNumber)) {
+        res.status(400).json({
+          error: "INVALID_PHONE",
+          message: "Phone number must be in E.164 format (e.g. +1234567890)",
+        });
+        return;
+      }
+
+      await recordLegalAcceptance({
+        phoneNumber,
+        legalVersion: "v1.0-2024-01-15",
+      });
+
+      res.json({ success: true });
+    } catch {
+      console.error("POST /accept-legal error");
+      res.status(500).json({ error: "Internal server error" });
     }
-
-    await recordLegalAcceptance({
-      phoneNumber,
-      legalVersion: "v1.0-2024-01-15",
-    });
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error("POST /accept-legal error");
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
+  },
+);
 
 // ──────────────────────────────────────────────────
 // POST /onboarding/otp/send
@@ -287,7 +300,7 @@ router.post(
 
       // ⚠️ IDENTICAL response for ALL platforms — NEVER include platform info.
       res.json({ success: true });
-    } catch (err) {
+    } catch {
       console.error("POST /otp/send error");
       res.status(500).json({ error: "Internal server error" });
     }
@@ -418,7 +431,7 @@ router.post(
         userId: result.userId,
         sessionId: result.sessionId,
       });
-    } catch (err) {
+    } catch {
       console.error("POST /otp/verify error");
       res.status(500).json({ error: "Internal server error" });
     }
@@ -452,10 +465,10 @@ router.post("/check-existing-user", async (req: Request, res: Response) => {
 
     // Only return boolean — never leak userId here
     res.json({ exists: !!existingUser });
-  } catch (err) {
-    console.error("POST /check-existing-user error");
-    res.status(500).json({ error: "Internal server error" });
-  }
+} catch {
+      console.error("POST /check-existing-user error");
+      res.status(500).json({ error: "Internal server error" });
+    }
 });
 
 // ──────────────────────────────────────────────────
@@ -486,10 +499,10 @@ router.post("/refresh", async (req: Request, res: Response) => {
     });
 
     res.json({ accessToken });
-  } catch (err) {
-    console.error("POST /refresh error");
-    res.status(500).json({ error: "Internal server error" });
-  }
+} catch {
+      console.error("POST /refresh error");
+      res.status(500).json({ error: "Internal server error" });
+    }
 });
 
 // ──────────────────────────────────────────────────
@@ -537,10 +550,10 @@ router.post("/login/handoff", async (req: Request, res: Response) => {
       message: `You're now logged in here on ${deviceInfo.deviceName}`,
       previousDevicesLoggedOut: handoff.revokedCount,
     });
-  } catch (err) {
-    console.error("POST /login/handoff error");
-    res.status(500).json({ error: "Internal server error" });
-  }
+} catch {
+      console.error("POST /login/handoff error");
+      res.status(500).json({ error: "Internal server error" });
+    }
 });
 
 // ──────────────────────────────────────────────────
@@ -577,10 +590,10 @@ router.post("/session/check", requireAuth, async (req: Request, res: Response) =
     }
 
     res.json({ isValid: true });
-  } catch (err) {
-    console.error("POST /session/check error");
-    res.status(500).json({ error: "Internal server error" });
-  }
+} catch {
+      console.error("POST /session/check error");
+      res.status(500).json({ error: "Internal server error" });
+    }
 });
 
 export default router;

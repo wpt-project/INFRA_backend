@@ -89,7 +89,7 @@ router.post("/create", async (req: Request, res: Response) => {
         createdAt: updated.createdAt.toISOString(),
       },
     });
-  } catch (err) {
+  } catch {
     console.error("POST /profile/create error");
     res.status(500).json({ error: "Internal server error" });
   }
@@ -123,7 +123,7 @@ router.post("/get", async (_req: Request, res: Response) => {
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     });
-  } catch (err) {
+  } catch {
     console.error("POST /profile/get error");
     res.status(500).json({ error: "Internal server error" });
   }
@@ -188,7 +188,7 @@ router.post("/update", async (req: Request, res: Response) => {
         updatedAt: updated.updatedAt.toISOString(),
       },
     });
-  } catch (err) {
+  } catch {
     console.error("POST /profile/update error");
     res.status(500).json({ error: "Internal server error" });
   }

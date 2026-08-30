@@ -15,6 +15,9 @@ module.exports = {
       caughtErrorsIgnorePattern: '^_',
     },
   ],
+  // Allow `declare global { namespace Express {...} }` — the standard
+  // declaration-only pattern for augmenting third-party types.
+  '@typescript-eslint/no-namespace': ['error', { allowDeclarations: true }],
   },
   extends: [
     'eslint:recommended',

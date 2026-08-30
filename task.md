@@ -1381,7 +1381,7 @@ DASHBOARD_ACCESS_EXPIRY=1h
 # Database
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=sealine
+DB_NAME=wpt
 DB_USER=postgres
 DB_PASSWORD=postgres
 

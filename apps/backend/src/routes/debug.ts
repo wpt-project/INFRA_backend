@@ -9,12 +9,12 @@
  * Remove entirely before production deploy.
  */
 
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { getDb } from "../db/index.js";
 
 const router: Router = Router();
 
-function requireDebug(req: Request, res: Response, next: Function) {
+function requireDebug(req: Request, res: Response, next: NextFunction) {
   if (process.env.DEBUG !== "1") {
     res.status(404).json({ error: "Not found" });
     return;
@@ -108,7 +108,7 @@ ${data.smsOutbox.map((r) => `<tr><td>${r.phone_number}</td><td style="font-size:
 ${data.legalAcceptances.map((r) => `<tr><td>${r.phone_number}</td><td>${r.legal_version}</td><td>${r.accepted_at}</td></tr>`).join("\n")}</table>
 
 </body></html>`);
-  } catch (err) {
+  } catch {
     console.error("Debug route error");
     res.status(500).json({ error: "Internal server error" });
   }
