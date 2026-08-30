@@ -1,0 +1,44 @@
+# ENC-4.1 — Prekey maintenance (scheduled).
+#
+# Same pattern as INFRA-1.4 / DB-2.7 (Supabase Keep-Alive): a GitHub Actions
+# scheduled workflow + manual dispatch. Runs the prekey job against the live
+# DB every Sunday at 03:17 UTC and is also manually triggerable whenever a
+# device's one-time prekey pool dips below 20.
+#
+# Requires the DATABASE_URL GitHub secret (the same Postgres connection
+# string used locally). The job never writes — or even prompts for — private
+# key material; it only maintains the public prekey tables (§8.8).
+
+name: Prekey Maintenance
+
+on:
+  schedule:
+    - cron: '17 3 * * 0'
+  workflow_dispatch:
+
+jobs:
+  maintain:
+    name: Rotate signed prekeys / replenish one-time prekeys
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.0.0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run prekey maintenance
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm --filter @wpt/backend exec tsx src/jobs/prekey-maintenance.ts

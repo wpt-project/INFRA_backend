@@ -6,3 +6,6 @@ export { smsOutbox } from "./sms-outbox-schema.js";
 export { dashboardAdmins } from "./dashboard-admins-schema.js";
 export { dashboardSessions } from "./dashboard-sessions-schema.js";
 export { auditLogs } from "./audit-logs-schema.js";
+export { devices } from "./devices-schema.js";
+export { signedPrekeys } from "./signed-prekeys-schema.js";
+export { oneTimePrekeys } from "./one-time-prekeys-schema.js";
