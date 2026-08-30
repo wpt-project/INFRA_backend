@@ -7,6 +7,7 @@ import { Server } from "socket.io";
 import { API_VERSION, SOCKET_NAMESPACE } from "@wpt/shared";
 import onboardingRoutes from "./routes/onboarding.js";
 import profileRoutes from "./routes/profile.js";
+import prekeyRoutes from "./routes/prekey.js";
 import debugRoutes from "./routes/debug.js";
 import adminRoutes from "./routes/admin.js";
 import {
@@ -57,6 +58,7 @@ app.get(`/api/${API_VERSION}/health`, (_req, res) => {
 app.use(`/api/${API_VERSION}/onboarding`, onboardingRoutes);
 // App endpoints: enforce aud "app" centrally (LOGIN-3.11).
 app.use(`/api/${API_VERSION}/profile`, requireAudience("app"), profileRoutes);
+app.use(`/api/${API_VERSION}/prekey-bundle`, requireAudience("app"), prekeyRoutes);
 app.use(`/api/${API_VERSION}/debug`, debugRoutes);
 // Dashboard endpoints: auth enforced centrally inside admin router (login/refresh
 // are public and share the mount, so the gate sits after them in admin.ts).
@@ -84,6 +86,10 @@ io.use(async (socket, next) => {
     const payload = await verifyAccessToken(token);
     if (payload.sub !== userId) {
       next(new Error("Token userId mismatch"));
+      return;
+    }
+    if (payload.deviceId !== deviceId) {
+      next(new Error("Token deviceId mismatch"));
       return;
     }
     next();
