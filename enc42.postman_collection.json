@@ -1,0 +1,258 @@
+{
+  "info": {
+    "_postman_id": "7f3b1c0a-enc4-42d1-9a3f-wptpostman0001",
+    "name": "WPT - ENC-4.1 / ENC-4.2",
+    "description": "ENC-4.1 ships NO HTTP endpoints (database tables + a weekly GitHub Actions cron). Test it via CLI:\n  - Migration: pnpm --filter @wpt/backend exec tsx src/db/apply-prekey-migration.ts\n  - Maintenance job (replenish one-time prekeys to 100 when <20, rotate signed prekeys): pnpm --filter @wpt/backend exec tsx src/jobs/prekey-maintenance.ts\n\nENC-4.2 = the 'Get prekey bundle' request below. Requires a valid app-audience access token (Authorization: Bearer). Each call consumes+deletes ONE one-time prekey of the target device; an exhausted pool returns 409 until the maintenance job refills it.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:3000", "type": "string" },
+    { "key": "deviceId", "value": "96f108cf-c67a-4d0a-af7e-88f89b86c797", "type": "string" },
+    { "key": "groupId", "value": "PASTE_REAL_GROUP_UUID", "type": "string" },
+    { "key": "targetUserId", "value": "PASTE_REAL_USER_UUID", "type": "string" },
+    { "key": "encryptedName", "value": "c2FtcGxlLS1lbmNyeXB0ZWQtbmFtZQ==", "type": "string" },
+    { "key": "encryptedDescription", "value": "c2FtcGxlLS1lbmNyeXB0ZWQtZGVzcmlwdGlvbg==", "type": "string" },
+    { "key": "encryptedIconRef", "value": "c2FtcGxlLS1sYXN0LWljb25yZWY=", "type": "string" },
+    { "key": "appToken", "value": "PASTE_APP_ACCESS_TOKEN", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "ENC-4.2 - Prekey bundle",
+      "item": [
+        {
+          "name": "Get prekey bundle (X3DH server half)",
+          "event": [],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{appToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "name": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/prekey-bundle/{deviceId}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "prekey-bundle", ":deviceId"],
+              "variable": [{ "key": "deviceId", "value": "{{deviceId}}" }]
+            },
+            "body": { "mode": "raw", "raw": "" }
+          },
+          "response": [],
+          "_postman_isSubFolder": false,
+          "description": "POST /api/v1/prekey-bundle/:deviceId\n\nReturns:\n- identityKey (recipient identity public key)\n- signedPrekey: { keyId, publicKey, signature, createdAt } (current signed prekey)\n- oneTimePrekey: { keyId, publicKey } (ONE key; consumed+deleted atomically on return)\n\nResponses:\n- 200 { success, bundle } — public key material only\n- 400 INVALID_DEVICE_ID (id not a UUID)\n- 404 DEVICE_NOT_FOUND (no active device / no identity key)\n- 409 NO_SIGNED_PREKEY or NO_ONE_TIME_PREKEY (pool exhausted)\n- 401 (no/invalid token), 403 (wrong audience token)\n\nEach success consumes one one-time prekey. Call twice -> different oneTimePrekey.keyId, first never seen again."
+        }
+      ]
+    },
+    {
+      "name": "ENC-4.3 - Group membership / epoch",
+      "item": [
+        {
+          "name": "Add members (epoch NEVER changes)",
+          "event": [],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{appToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "name": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/groups/{groupId}/members",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "groups", ":groupId", "members"],
+              "variable": [{ "key": "groupId", "value": "{{groupId}}" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"memberUserIds\": [\"{{targetUserId}}\"]\n}"
+            }
+          },
+          "response": [],
+          "_postman_isSubFolder": false,
+          "description": "POST /api/v1/groups/:groupId/members\nOwner/Admin-only. Batch add; 70-member cap under row lock.\nADDS NEVER ADVANCE sender_key_epoch (no retroactive access, §8.5).\n\n- 200 { added, skipped, memberCount, senderKeyEpoch } (epoch unchanged)\n- 400 INVALID_MEMBER_IDS / 403 NOT_GROUP_MEMBER / NOT_GROUP_ADMIN\n- 404 GROUP_NOT_FOUND / USER_NOT_FOUND (ids missing from users table)\n- 409 GROUP_MEMBER_LIMIT"
+        },
+        {
+          "name": "Remove member (epoch +1 ATOMIC)",
+          "event": [],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{appToken}}", "type": "string" }]
+            },
+            "method": "DELETE",
+            "header": [
+              { "key": "Content-Type", "name": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/groups/{groupId}/members/{targetUserId}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "groups", ":groupId", "members", ":targetUserId"],
+              "variable": [
+                { "key": "groupId", "value": "{{groupId}}" },
+                { "key": "targetUserId", "value": "{{targetUserId}}" }
+              ]
+            },
+            "body": { "mode": "raw", "raw": "" }
+          },
+          "response": [],
+          "_postman_isSubFolder": false,
+          "description": "DELETE /api/v1/groups/:groupId/members/:targetUserId\nOwner/Admin-only. DEPARTURE: deletes the row AND does sender_key_epoch = sender_key_epoch + 1 in the SAME transaction (rollback together) so the removed member can never decrypt future messages.\nOwner can never be removed.\n\n- 200 { removedUserId, epoch: { previous, current } }  (current = previous + 1)\n- 403 NOT_GROUP_MEMBER / NOT_GROUP_ADMIN / CANNOT_REMOVE_OWNER\n- 404 MEMBER_NOT_FOUND"
+        },
+        {
+          "name": "Leave group (epoch +1 ATOMIC)",
+          "event": [],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{appToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "name": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/groups/{groupId}/leave",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "groups", ":groupId", "leave"],
+              "variable": [{ "key": "groupId", "value": "{{groupId}}" }]
+            },
+            "body": { "mode": "raw", "raw": "" }
+          },
+          "response": [],
+          "_postman_isSubFolder": false,
+          "description": "POST /api/v1/groups/:groupId/leave\nSelf-removal. Also a departure: row deleted + sender_key_epoch +1 atomic.\n\n- 200 { leftUserId, epoch: { previous, current } }\n- 404 MEMBER_NOT_FOUND (not a member)"
+        }
+      ]
+    },
+    {
+      "name": "ENC-4.4 - Group metadata ciphertext storage",
+      "item": [
+        {
+          "name": "Create group (stores opaque encrypted metadata)",
+          "event": [],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{appToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "name": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/groups",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "groups"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"encryptedName\": \"{{encryptedName}}\",\n  \"encryptedDescription\": \"{{encryptedDescription}}\",\n  \"encryptedIconRef\": \"{{encryptedIconRef}}\",\n  \"whoCanSend\": \"everyone\"\n}"
+            }
+          },
+          "response": [],
+          "_postman_isSubFolder": false,
+          "description": "POST /api/v1/groups\nENC-4.4: encryptedName/encryptedDescription/encryptedIconRef are BASE64 of the GROUP-KEY ciphertext (client-side). The server stores them as opaque bytea and NEVER decrypts/inspects/logs them. The sample {{encryptedName}} etc. are placeholder ciphertext bytes (any valid base64 works for smoke tests; a real client sends real ciphertext). Creator becomes owner.\n\n- 201 { success, group: { id, senderKeyEpoch: 0, yourRole: \"owner\" } }\n- 400 INVALID_ENCRYPTED_NAME / INVALID_ENCRYPTED_DESCRIPTION / INVALID_ENCRYPTED_ICON_REF / INVALID_WHO_CAN_SEND\n- 404 USER_NOT_FOUND (requester not registered)"
+        },
+        {
+          "name": "Get group info (returns opaque ciphertext, members only)",
+          "event": [],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{appToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [
+              { "key": "Content-Type", "name": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/groups/{groupId}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "groups", ":groupId"],
+              "variable": [{ "key": "groupId", "value": "{{groupId}}" }]
+            },
+            "body": { "mode": "raw", "raw": "" }
+          },
+          "response": [],
+          "_postman_isSubFolder": false,
+          "description": "GET /api/v1/groups/:groupId\nReturns the encrypted metadata EXACTLY as stored (base64 of the bytea) - identity of what was stored, proven by round-trip. For members only (non-members get 403 NOT_GROUP_MEMBER).\n\n- 200 { success, group: { id, encryptedName, encryptedDescription, encryptedIconRef, whoCanSend, senderKeyEpoch, createdAt } }\n- 403 NOT_GROUP_MEMBER\n- 404 GROUP_NOT_FOUND"
+        }
+      ]
+    },
+    {
+      "name": "Auth - mint an app token",
+      "item": [
+        {
+          "name": "Accept legal (ToS/Privacy, before OTP)",
+          "event": [],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "name": "Content-Type", "value": "application/json", "type": "text" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/onboarding/accept-legal", "host": ["{{baseUrl}}"], "path": ["api", "v1", "onboarding", "accept-legal"] },
+            "body": { "mode": "raw", "raw": "{\n  \"phoneNumber\": \"+919120000000\",\n  \"legalVersion\": \"1.1\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Send OTP",
+          "event": [],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "name": "Content-Type", "value": "application/json", "type": "text" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/onboarding/otp/send", "host": ["{{baseUrl}}"], "path": ["api", "v1", "onboarding", "otp", "send"] },
+            "body": { "mode": "raw", "raw": "{\n  \"phoneNumber\": \"+919120000000\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify OTP",
+          "event": [],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "name": "Content-Type", "value": "application/json", "type": "text" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/onboarding/otp/verify", "host": ["{{baseUrl}}"], "path": ["api", "v1", "onboarding", "otp", "verify"] },
+            "body": { "mode": "raw", "raw": "{\n  \"phoneNumber\": \"+919120000000\",\n  \"code\": \"123456\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Login handoff (new device -> full revoke + tokens)",
+          "event": [],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "name": "Content-Type", "value": "application/json", "type": "text" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/onboarding/login/handoff", "host": ["{{baseUrl}}"], "path": ["api", "v1", "onboarding", "login", "handoff"] },
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"<from otp/verify or refresh>\",\n  \"deviceInfo\": {\n    \"platform\": \"android\"\n  }\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh access token",
+          "event": [],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "name": "Content-Type", "value": "application/json", "type": "text" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/onboarding/refresh", "host": ["{{baseUrl}}"], "path": ["api", "v1", "onboarding", "refresh"] },
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"<refresh token>\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Check existing user",
+          "event": [],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "name": "Content-Type", "value": "application/json", "type": "text" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/onboarding/check-existing-user", "host": ["{{baseUrl}}"], "path": ["api", "v1", "onboarding", "check-existing-user"] },
+            "body": { "mode": "raw", "raw": "{\n  \"phoneNumber\": \"+919120000000\"\n}" }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "references": {
+    "wpt-docs": {
+      "path": "/home/jemzi/Documents/WPT/wpt-Documentation",
+      "description": "WPT spec: BRD v1.4, PRD v1.2 (source of truth for 'done', incl. 28-section UX Scenario Reference), Technical Architecture Doc v1.0 (day-to-day backend reference), Architecture Onboarding, ToS/Privacy v1.1"
+    }
+  }
+}
