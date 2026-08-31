@@ -96,7 +96,7 @@ async function main() {
   const pool = new Pool({ connectionString: url, family: 4 } as PoolConfig);
   const client = await pool.connect();
 
-  const suffix = Date.now().toString(36);
+  const suffix = Date.now().toString(36) + randomUUID().slice(0, 4);
   const ownerId = randomUUID();
   const outsiderId = randomUUID();
   // A real uuid with NO users row -> token whose sub is not a registered user.
@@ -253,6 +253,7 @@ async function main() {
 
     // --- [7] Cleanup ---------------------------------------------------------
     console.log("\n[7] Cleanup");
+    await client.query(`DELETE FROM groups WHERE id = $1`, [groupId]);
     for (const uid of seededUserIds) {
       await client.query(`DELETE FROM users WHERE id = $1`, [uid]);
     }
@@ -260,7 +261,7 @@ async function main() {
       `SELECT count(*)::int AS n FROM groups WHERE id = $1`,
       [groupId],
     );
-    assert(leftoverGroups.rows[0]!.n === 0, `group removed (members cascade)`);
+    assert(leftoverGroups.rows[0]!.n === 0, `group removed`);
 
     if (failures === 0) {
       console.log("\nALL CHECKS PASSED (ENC-4.4 VERIFY)");

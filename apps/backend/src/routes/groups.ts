@@ -30,6 +30,7 @@
 import { Router, type Request, type Response } from "express";
 import { sql } from "drizzle-orm";
 import { getDb } from "../db/index.js";
+import { createSignedUrl } from "../storage/signed-url.js";
 
 const router: Router = Router();
 
@@ -56,10 +57,11 @@ type GroupInfoRow = {
   encrypted_icon_ref: Buffer | null;
   who_can_send: string;
   sender_key_epoch: number;
-  created_at: Date;
+  created_at: Date | string;
 };
 
 const WHO_CAN_SEND = ["everyone", "admins_only"] as const;
+const ICON_BUCKET = process.env.ICON_STORAGE_BUCKET ?? "group-icons";
 
 function invalidId(res: Response, label: string, code: string): boolean {
   res.status(400).json({
@@ -257,7 +259,7 @@ router.get("/:groupId", async (req: Request, res: Response) => {
           encryptedIconRef: group.encrypted_icon_ref ? b64(group.encrypted_icon_ref) : null,
           whoCanSend: group.who_can_send,
           senderKeyEpoch: group.sender_key_epoch,
-          createdAt: group.created_at.toISOString(),
+          createdAt: typeof group.created_at === "string" ? group.created_at : group.created_at.toISOString(),
         },
       } as const;
     });
@@ -271,8 +273,92 @@ router.get("/:groupId", async (req: Request, res: Response) => {
       return;
     }
     res.json({ success: true, group: outcome.info });
+  } catch (err) {
+    console.error(`${ROUTE_LABELS[1]} error`, err);
+    res.status(500).json({ success: false, error: "INTERNAL_ERROR" });
+  }
+});
+
+// ──────────────────────────────────────────────────
+// GET /groups/:groupId/icon — membership-gated signed download URL (ENC-4.5).
+// The icon flows through the E2EE media pipeline (§11.1): the backend never
+// decrypts the bytes; it only issues a short-lived signed URL to the storage
+// object referenced by encrypted_icon_ref, gated on current membership.
+// ──────────────────────────────────────────────────
+router.get("/:groupId/icon", async (req: Request, res: Response) => {
+  try {
+    const rawGroupId = req.params.groupId;
+    if (typeof rawGroupId !== "string" || !UUID_RE.test(rawGroupId)) {
+      invalidId(res, "groupId", "INVALID_GROUP_ID");
+      return;
+    }
+    const groupId = rawGroupId;
+
+    const me = requesterId(res);
+    if (!me) {
+      res.status(401).json({ success: false, error: "TOKEN_REQUIRED" });
+      return;
+    }
+
+    const db = getDb();
+
+    const outcome = await db.transaction(async (tx) => {
+      // Existence + fetch the storage pointer in one shot.
+      const groupRows = (await tx.execute(
+        sql`SELECT id, encrypted_icon_ref FROM groups WHERE id = ${groupId}`,
+      )) as unknown as { rows: { id: string; encrypted_icon_ref: Buffer | null }[] };
+      const group = groupRows.rows[0];
+      if (!group) return { kind: "not_found" } as const;
+      if (!group.encrypted_icon_ref || group.encrypted_icon_ref.length === 0) {
+        return { kind: "no_icon" } as const;
+      }
+
+      // Membership gate (ENC-4.5): same check as GET info.
+      const myRows = (await tx.execute(
+        sql`SELECT role FROM group_members WHERE group_id = ${groupId} AND user_id = ${me}`,
+      )) as unknown as { rows: RoleRow[] };
+      if (myRows.rows.length === 0) return { kind: "not_a_member" } as const;
+
+      // Decode the opaque bytea pointer to a UTF-8 storage path (the pointer
+      // itself is not secret; it's just an opaque bucket key).
+      const storagePath = group.encrypted_icon_ref.toString("utf-8");
+
+      return { kind: "ok", storagePath } as const;
+    });
+
+    if (outcome.kind === "not_found") {
+      res.status(404).json({ success: false, error: "GROUP_NOT_FOUND" });
+      return;
+    }
+    if (outcome.kind === "no_icon") {
+      res.status(404).json({
+        success: false,
+        error: "ICON_NOT_FOUND",
+        message: "This group has no icon set",
+      });
+      return;
+    }
+    if (outcome.kind === "not_a_member") {
+      res.status(403).json({ success: false, error: "NOT_GROUP_MEMBER" });
+      return;
+    }
+
+    // Issue a short-lived signed download URL from Supabase Storage.
+    const signedUrl = await createSignedUrl(ICON_BUCKET, outcome.storagePath);
+    if (!signedUrl) {
+      console.error("GET /:groupId/icon: failed to create signed URL for", outcome.storagePath);
+      res.status(500).json({ success: false, error: "STORAGE_URL_FAILED" });
+      return;
+    }
+
+    res.json({
+      success: true,
+      iconUrl: signedUrl,
+      expiresIn: 3600,
+      storagePath: outcome.storagePath,
+    });
   } catch {
-    console.error(`${ROUTE_LABELS[1]} error`);
+    console.error("GET /:groupId/icon error");
     res.status(500).json({ success: false, error: "INTERNAL_ERROR" });
   }
 });

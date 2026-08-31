@@ -180,6 +180,30 @@
           "response": [],
           "_postman_isSubFolder": false,
           "description": "GET /api/v1/groups/:groupId\nReturns the encrypted metadata EXACTLY as stored (base64 of the bytea) - identity of what was stored, proven by round-trip. For members only (non-members get 403 NOT_GROUP_MEMBER).\n\n- 200 { success, group: { id, encryptedName, encryptedDescription, encryptedIconRef, whoCanSend, senderKeyEpoch, createdAt } }\n- 403 NOT_GROUP_MEMBER\n- 404 GROUP_NOT_FOUND"
+        },
+        {
+          "name": "Get group icon (membership-gated signed URL)",
+          "event": [],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{appToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [
+              { "key": "Content-Type", "name": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/groups/{groupId}/icon",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "groups", ":groupId", "icon"],
+              "variable": [{ "key": "groupId", "value": "{{groupId}}" }]
+            },
+            "body": { "mode": "raw", "raw": "" }
+          },
+          "response": [],
+          "_postman_isSubFolder": false,
+          "description": "GET /api/v1/groups/:groupId/icon\nENC-4.5: icon flows through the E2EE media pipeline. Returns a short-lived signed download URL for the storage object referenced by encrypted_icon_ref. Gated on CURRENT membership: a removed/left member (even holding the old URL) gets 403. iconUrl is a RELATIVE path - the client joins it onto SUPABASE_URL.\n\n- 200 { success, iconUrl, expiresIn: 3600, storagePath }\n- 403 NOT_GROUP_MEMBER (non-member / former member)\n- 404 ICON_NOT_FOUND (no icon set) / GROUP_NOT_FOUND"
         }
       ]
     },
