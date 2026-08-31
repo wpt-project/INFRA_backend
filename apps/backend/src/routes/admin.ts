@@ -21,6 +21,8 @@ import {
   dashboardLogout,
   dashboardLogoutAll,
   getDashboardAdminById,
+  createDashboardAdmin,
+  deleteDashboardAdmin,
 } from "../auth/dashboard.js";
 import {
   requireDashboardAuth,
@@ -190,35 +192,132 @@ router.get("/audit/otp", async (req: Request, res: Response) => {
 });
 
 // ──────────────────────────────────────────────────
-// Owner-only management endpoints (placeholders for future tasks)
+// Owner-only management endpoints
 // ──────────────────────────────────────────────────
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const UUID_RE = /^[0-9a-fA-F-]{36}$/;
+
 // POST /admin/admins — create a new dashboard admin (owner only)
-router.post("/admins", requireOwnerRole, async (_req: Request, res: Response) => {
-  // TODO(LOGIN-3.x): Implement admin creation (owner-only) in a future task.
-  res.json({ success: true, message: "ADMIN_CREATION_ENDPOINT" });
+router.post("/admins", requireOwnerRole, async (req: Request, res: Response) => {
+  try {
+    const actingAdminId = res.locals.dashboardAuth!.sub;
+    const { email, password, role, isTestAccount } = req.body as {
+      email?: unknown;
+      password?: unknown;
+      role?: unknown;
+      isTestAccount?: unknown;
+    };
+
+    if (typeof email !== "string" || !EMAIL_RE.test(email)) {
+      res.status(400).json({ success: false, error: "INVALID_EMAIL" });
+      return;
+    }
+    if (
+      typeof password !== "string" ||
+      password.length < 8 ||
+      password.length > 128
+    ) {
+      res.status(400).json({
+        success: false,
+        error: "INVALID_PASSWORD",
+        message: "password must be 8-128 characters",
+      });
+      return;
+    }
+    if (role !== undefined && role !== null && role !== "owner" && role !== "admin") {
+      res.status(400).json({
+        success: false,
+        error: "INVALID_ROLE",
+        message: "role must be 'owner' or 'admin'",
+      });
+      return;
+    }
+    const normalizedRole = (role === "owner" ? "owner" : "admin") as "owner" | "admin";
+
+    const result = await createDashboardAdmin({
+      email,
+      password,
+      role: normalizedRole,
+      isTestAccount:
+        typeof isTestAccount === "boolean" ? isTestAccount : false,
+    });
+
+    if (!result.ok) {
+      if (result.error === "EMAIL_ALREADY_EXISTS") {
+        res.status(409).json({ success: false, error: "EMAIL_ALREADY_EXISTS" });
+        return;
+      }
+      res.status(400).json({ success: false, error: result.error });
+      return;
+    }
+
+    // The acting owner is the actor of record for the audit trail.
+    res.status(201).json({
+      success: true,
+      actorId: actingAdminId,
+      admin: {
+        id: result.id,
+        email: result.email,
+        role: result.role,
+        isTestAccount: result.isTestAccount,
+      },
+    });
+  } catch (err) {
+    console.error("POST /admin/admins error", err);
+    res.status(500).json({ success: false, error: "INTERNAL_SERVER_ERROR" });
+  }
 });
 
 // DELETE /admin/admins/:id — delete a dashboard admin (owner only)
-router.delete("/admins/:id", requireOwnerRole, async (_req: Request, res: Response) => {
-  // TODO(LOGIN-3.x): Implement admin deletion (owner-only) in a future task.
-  res.json({ success: true, message: "ADMIN_DELETION_ENDPOINT" });
+router.delete("/admins/:id", requireOwnerRole, async (req: Request, res: Response) => {
+  try {
+    const actingAdminId = res.locals.dashboardAuth!.sub;
+    const rawId = req.params.id;
+    if (typeof rawId !== "string" || !UUID_RE.test(rawId)) {
+      res.status(400).json({ success: false, error: "INVALID_ADMIN_ID" });
+      return;
+    }
+
+    const result = await deleteDashboardAdmin(rawId, actingAdminId);
+    if (!result.ok) {
+      if (result.error === "ADMIN_NOT_FOUND") {
+        res.status(404).json({ success: false, error: "ADMIN_NOT_FOUND" });
+        return;
+      }
+      res.status(400).json({
+        success: false,
+        error: "CANNOT_DELETE_OWNER",
+        message: "You cannot delete an owner, and the last owner can never be removed",
+      });
+      return;
+    }
+    res.json({ success: true, deletedAdminId: result.id });
+  } catch (err) {
+    console.error("DELETE /admin/admins/:id error", err);
+    res.status(500).json({ success: false, error: "INTERNAL_SERVER_ERROR" });
+  }
 });
 
 // GET /admin/admins — list dashboard admins (owner only)
-router.get("/admins", requireDashboardAuth, requireOwnerRole, async (_req: Request, res: Response) => {
-  const db = getDb();
-  const rows = await db
-    .select({
-      id: dashboardAdmins.id,
-      email: dashboardAdmins.email,
-      role: dashboardAdmins.role,
-      isTestAccount: dashboardAdmins.isTestAccount,
-      createdAt: dashboardAdmins.createdAt,
-    })
-    .from(dashboardAdmins)
-    .orderBy(dashboardAdmins.createdAt);
-  res.json({ success: true, admins: rows });
+router.get("/admins", requireOwnerRole, async (_req: Request, res: Response) => {
+  try {
+    const db = getDb();
+    const rows = await db
+      .select({
+        id: dashboardAdmins.id,
+        email: dashboardAdmins.email,
+        role: dashboardAdmins.role,
+        isTestAccount: dashboardAdmins.isTestAccount,
+        createdAt: dashboardAdmins.createdAt,
+      })
+      .from(dashboardAdmins)
+      .orderBy(dashboardAdmins.createdAt);
+    res.json({ success: true, admins: rows });
+  } catch (err) {
+    console.error("GET /admin/admins error", err);
+    res.status(500).json({ success: false, error: "INTERNAL_SERVER_ERROR" });
+  }
 });
 
 export default router;

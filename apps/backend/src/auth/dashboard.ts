@@ -19,6 +19,7 @@ import { eq, and, isNull, lt } from "drizzle-orm";
 import { getDb } from "../db/index.js";
 import { dashboardAdmins } from "../db/dashboard-admins-schema.js";
 import { dashboardSessions } from "../db/dashboard-sessions-schema.js";
+import { auditLogs } from "../db/audit-logs-schema.js";
 import {
   issueDashboardAccessToken,
   issueDashboardRefreshToken,
@@ -238,4 +239,134 @@ export async function getDashboardAdminById(
   const db = getDb();
   const [row] = await db.select().from(dashboardAdmins).where(eq(dashboardAdmins.id, id)).limit(1);
   return row ?? null;
+}
+
+export interface CreateDashboardAdminInput {
+  email: string;
+  password: string;
+  role?: "owner" | "admin";
+  isTestAccount?: boolean;
+}
+
+export type CreateDashboardAdminResult =
+  | { ok: true; id: string; email: string; role: "owner" | "admin"; isTestAccount: boolean }
+  | { ok: false; error: "EMAIL_ALREADY_EXISTS" | "INVALID_ROLE" };
+
+/**
+ * Create a dashboard admin (owner-only operation).
+ *
+ * The raw password is NEVER stored — only a round-12 bcrypt hash. The insert
+ * and the audit_log entry are committed in a SINGLE transaction so an admin
+ * action is never recorded without its audit trail (AGENTS.md moderation
+ * convention). A duplicate email is surfaced distinctly (409 on the route).
+ */
+export async function createDashboardAdmin(
+  input: CreateDashboardAdminInput,
+): Promise<CreateDashboardAdminResult> {
+  const role: "owner" | "admin" = input.role === "owner" ? "owner" : "admin";
+
+  const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
+
+  const db = getDb();
+  const insert: typeof dashboardAdmins.$inferInsert = {
+    email: input.email,
+    passwordHash,
+    role,
+    isTestAccount: input.isTestAccount ?? false,
+  };
+
+  try {
+    const created = await db.transaction(async (tx) => {
+      const rows = await tx
+        .insert(dashboardAdmins)
+        .values(insert)
+        .returning({ id: dashboardAdmins.id, email: dashboardAdmins.email });
+      const row = rows[0];
+      if (!row) throw new Error("admin insert returned no row");
+      // Same-transaction audit trail for the moderation action.
+      await tx.insert(auditLogs).values({
+        eventType: "admin_admin_created",
+        metadata: {
+          action: "admin_created",
+          targetEmail: row.email,
+          role,
+        },
+      });
+      return row;
+    });
+
+    return {
+      ok: true,
+      id: created.id,
+      email: created.email,
+      role,
+      isTestAccount: input.isTestAccount ?? false,
+    };
+  } catch (err) {
+    // The email unique index (dashboard_admins_email_unique) turns a duplicate
+    // into a Postgres 23505 — surface it distinctly rather than a 500. Drizzle
+    // wraps the raw pg error; the code lives on the nested cause.
+    const code = (err as { code?: string; cause?: { code?: string } })?.code
+      ?? (err as { cause?: { code?: string } })?.cause?.code;
+    if (code === "23505") {
+      return { ok: false, error: "EMAIL_ALREADY_EXISTS" };
+    }
+    throw err;
+  }
+}
+
+export type DeleteDashboardAdminResult =
+  | { ok: true; id: string }
+  | { ok: false; error: "ADMIN_NOT_FOUND" | "CANNOT_DELETE_OWNER" };
+
+/**
+ * Delete a dashboard admin (owner-only operation).
+ *
+ * Deleting the LAST owner is forbidden (would lock everyone out of dashboard
+ * management). Also refuses to delete the acting owner. The row delete and the
+ * audit_log write are committed in a SINGLE transaction.
+ */
+export async function deleteDashboardAdmin(
+  id: string,
+  actingAdminId: string,
+): Promise<DeleteDashboardAdminResult> {
+  const db = getDb();
+
+  return db.transaction(async (tx) => {
+    const [target] = await tx
+      .select({ id: dashboardAdmins.id, role: dashboardAdmins.role })
+      .from(dashboardAdmins)
+      .where(eq(dashboardAdmins.id, id))
+      .limit(1);
+    if (!target) return { ok: false, error: "ADMIN_NOT_FOUND" } as const;
+
+    // An owner can never delete themselves (or any owner — enforced below via
+    // the last-owner check plus this explicit guard).
+    if (target.id === actingAdminId && target.role === "owner") {
+      return { ok: false, error: "CANNOT_DELETE_OWNER" } as const;
+    }
+
+    if (target.role === "owner") {
+      const owners = await tx
+        .select({ id: dashboardAdmins.id })
+        .from(dashboardAdmins)
+        .where(eq(dashboardAdmins.role, "owner"));
+      // Cannot delete the LAST remaining owner — the dashboard must always
+      // have at least one owner able to manage it.
+      if (owners.length <= 1) {
+        return { ok: false, error: "CANNOT_DELETE_OWNER" } as const;
+      }
+    }
+
+    await tx.delete(dashboardAdmins).where(eq(dashboardAdmins.id, id));
+    await tx.insert(auditLogs).values({
+      eventType: "admin_admin_deleted",
+      metadata: {
+        action: "admin_deleted",
+        targetId: id,
+        actorId: actingAdminId,
+      },
+    });
+    return { ok: true, id } as const;
+  });
 }

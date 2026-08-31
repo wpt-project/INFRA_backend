@@ -346,7 +346,9 @@ router.get("/:groupId/icon", async (req: Request, res: Response) => {
     // Issue a short-lived signed download URL from Supabase Storage.
     const signedUrl = await createSignedUrl(ICON_BUCKET, outcome.storagePath);
     if (!signedUrl) {
-      console.error("GET /:groupId/icon: failed to create signed URL for", outcome.storagePath);
+      // Deliberately log NO storage path / object key: it is an opaque media
+      // pointer we never need to repeat on the failure path (ENC-4.6 audit).
+      console.error("GET /:groupId/icon: failed to create signed URL");
       res.status(500).json({ success: false, error: "STORAGE_URL_FAILED" });
       return;
     }

@@ -41,13 +41,15 @@ export async function createSignedUrl(
       body: JSON.stringify({ expiresIn: expiresInSec }),
     });
     if (!res.ok) {
-      console.error("createSignedUrl: storage returned", res.status, (await res.text()).slice(0, 200));
+      // Log only the HTTP status, never the response body (which contains the
+      // signed-URL token) — ENC-4.6: no leak-prone logging near crypto paths.
+      console.error(`createSignedUrl: storage returned ${res.status}`);
       return null;
     }
     const data = (await res.json()) as { signedUrl?: string; signedURL?: string };
     const signedUrl = data.signedUrl ?? data.signedURL;
     if (!signedUrl) {
-      console.error("createSignedUrl: no signedUrl in response:", JSON.stringify(data).slice(0, 200));
+      console.error("createSignedUrl: no signedUrl in response");
       return null;
     }
     return signedUrl;
