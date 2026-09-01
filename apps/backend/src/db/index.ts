@@ -27,6 +27,12 @@ export function getDb() {
   const pool = new Pool({
     connectionString,
     family: 4,
+    // Fail fast instead of queueing forever when Supabase's DB/pooler host
+    // flaps (recurring DNS/connectivity issue) — a silent indefinite hang is
+    // far worse than an explicit 500. 5s connect + 8s per query.
+    connectionTimeoutMillis: 5000,
+    statement_timeout: 8000,
+    idleTimeoutMillis: 10_000,
   } as PoolConfig);
 
   // Honor APP_TIMEZONE for per-connection sessions so SQL-level now()/reads
