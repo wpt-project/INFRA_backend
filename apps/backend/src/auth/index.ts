@@ -1,4 +1,5 @@
 export { issueAccessToken, verifyAccessToken, decodeAccessTokenUnsafe } from "./jwt.js";
+export { issueAdminToken, verifyAdminToken } from "./jwt.js";
 export type { AccessTokenPayload, IssueAccessTokenParams } from "./types.js";
 
 export {

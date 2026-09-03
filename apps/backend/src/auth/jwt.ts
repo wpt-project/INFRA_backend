@@ -114,3 +114,54 @@ function toAccessTokenPayload(raw: JWTPayload): AccessTokenPayload {
     iss,
   };
 }
+
+// ─────────────────────────────────────────────────────────────
+// DB-2.5 — Dashboard-admin tokens.
+//
+// Admins authenticate with a distinct JWT that carries an `adm`
+// claim (verifying they are dashboard staff) and no deviceId/sid
+// claims (they are not an end-user device session). The secret and
+// issuer are the same so the sign/verify plumbing is shared, but
+// the token shape is separate from the user access token.
+// ─────────────────────────────────────────────────────────────
+
+/** Issue a signed JWT for a dashboard admin. */
+export async function issueAdminToken(
+  adminId: string,
+  expiresIn: string = "8h",
+): Promise<string> {
+  const secret = getSecret();
+
+  const token = await new SignJWT({ adm: "admin" })
+    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+    .setSubject(adminId)
+    .setIssuer(ISSUER)
+    .setIssuedAt()
+    .setExpirationTime(expiresIn)
+    .sign(secret);
+
+  return token;
+}
+
+/** Verify an admin token. Returns the adminId (sub) on success. */
+export async function verifyAdminToken(
+  token: string,
+): Promise<{ adminId: string }> {
+  const secret = getSecret();
+
+  const { payload } = await jwtVerify(token, secret, {
+    issuer: ISSUER,
+    algorithms: ["HS256"],
+  });
+
+  if (payload.adm !== "admin") {
+    throw new Error("Not an admin token");
+  }
+
+  const sub = typeof payload.sub === "string" ? payload.sub : undefined;
+  if (!sub) {
+    throw new Error("Admin token missing sub");
+  }
+
+  return { adminId: sub };
+}

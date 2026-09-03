@@ -11,6 +11,7 @@
 
 import { Router, Request, Response } from "express";
 import { getDb } from "../db/index.js";
+import { issueAdminToken } from "../auth/jwt.js";
 
 const router: Router = Router();
 
@@ -110,6 +111,29 @@ ${data.legalAcceptances.map((r) => `<tr><td>${r.phone_number}</td><td>${r.legal_
 </body></html>`);
   } catch (err) {
     console.error("Debug route error");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * Debug-only: mint a dashboard-admin JWT for local moderation testing.
+ * Guarded by the same DEBUG/localhost gate as /tables.
+ */
+router.get("/admin-token", async (_req: Request, res: Response) => {
+  try {
+    const db = getDb();
+    const admins = await db.execute(
+      "SELECT id FROM dashboard_admins ORDER BY created_at ASC LIMIT 1",
+    );
+    const row = admins.rows?.[0] as { id?: string } | undefined;
+    if (!row?.id) {
+      res.status(404).json({ error: "No dashboard_admin found" });
+      return;
+    }
+    const token = await issueAdminToken(row.id);
+    res.json({ adminId: row.id, token });
+  } catch (err) {
+    console.error("Debug admin-token route error");
     res.status(500).json({ error: "Internal server error" });
   }
 });
