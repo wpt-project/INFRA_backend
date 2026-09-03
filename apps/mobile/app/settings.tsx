@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeContext } from '@/providers/ThemeProvider';
 import { useSessionContext } from '@/providers/SessionProvider';
+import { moderationApi } from '@/api/moderationApi';
 import type { ThemeMode, ThemeColors } from '@/lib/theme';
 
 const FONTS = {
@@ -136,6 +137,22 @@ export default function SettingsScreen() {
   const [notifications, setNotifications] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [enterToSend, setEnterToSend] = useState(false);
+  const [blockedCount, setBlockedCount] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    moderationApi
+      .listBlocked()
+      .then((res) => {
+        if (alive) setBlockedCount(res.blockedPhoneHashes.length);
+      })
+      .catch(() => {
+        /* ignore — count stays 0 if network/token unavailable */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const handleLogout = () => {
     Alert.alert('Log Out', 'Are you sure you want to log out?', [
@@ -217,7 +234,7 @@ export default function SettingsScreen() {
               />
             }
           />
-          <SettingRow icon="ban-outline" label="Blocked Contacts" value="0" colors={colors} onPress={() => {}} />
+          <SettingRow icon="ban-outline" label="Blocked Contacts" value={String(blockedCount)} colors={colors} onPress={() => router.push('/blocked-contacts')} />
         </View>
 
         <SectionHeader title="Notifications" colors={colors} />
