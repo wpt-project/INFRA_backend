@@ -19,6 +19,7 @@ import {
   timestamp,
   index,
 } from "drizzle-orm/pg-core";
+import { devices } from "./devices-schema.js";
 
 /** bytea column: stores binary ciphertext as a Buffer. */
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
@@ -37,7 +38,9 @@ export const messageRelay = pgTable(
   "message_relay",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    senderDeviceId: uuid("sender_device_id").notNull(),
+    senderDeviceId: uuid("sender_device_id")
+      .notNull()
+      .references(() => devices.id, { onDelete: "cascade" }),
     recipientDeviceId: uuid("recipient_device_id").notNull(),
     recipientUserId: uuid("recipient_user_id"),
     recipientGroupId: uuid("recipient_group_id"),
