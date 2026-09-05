@@ -18,7 +18,7 @@
  */
 
 import { randomBytes, createHash } from "node:crypto";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { eq, and, isNull } from "drizzle-orm";
 import { getDb, type AppDb } from "../db/index.js";
 import { sessions } from "../db/sessions-schema.js";
