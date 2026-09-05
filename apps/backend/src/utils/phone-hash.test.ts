@@ -97,12 +97,44 @@ console.log(`Hash with salt "different...": ${hash2.substring(0, 16)}...`);
 console.log(`✓ Hashes differ:              ${hash1 !== hash2 ? "✅ PASS" : "❌ FAIL"}`);
 console.log();
 
+// Test 4: Verify GLOBAL_SALT env var naming (spec compliance)
+console.log("Test 4: Verify GLOBAL_SALT env var support (per spec naming)");
+console.log("-".repeat(70));
+
+delete process.env.CONTACT_HASH_SALT;
+process.env.GLOBAL_SALT = "spec_named_salt_value";
+const hashWithGlobalSalt = phoneHash(testNumber);
+
+console.log(`Hash using GLOBAL_SALT:       ${hashWithGlobalSalt.substring(0, 16)}...`);
+console.log(`✓ GLOBAL_SALT works:          ${hashWithGlobalSalt ? "✅ PASS" : "❌ FAIL"}`);
+console.log();
+
+// Test 5: Verify format tolerance on messy inputs (dashes, parens, spaces, leading zeros)
+console.log("Test 5: Edge cases — Messy formatting variants");
+console.log("-".repeat(70));
+
+const messyFormats = [
+  "+91-98765-43210",
+  "+91 (987) 654-3210",
+  "+91.98765.43210",
+  "+91  9876543210",
+];
+
+const messyHashes = messyFormats.map(f => phoneHashNormalized(f));
+const allMessySame = messyHashes.every(h => h === messyHashes[0] && h !== null);
+
+for (let i = 0; i < messyFormats.length; i++) {
+  console.log(`Format: "${messyFormats[i]}" → Hash: ${messyHashes[i]?.substring(0, 16)}...`);
+}
+console.log(`✓ All messy formats match:   ${allMessySame ? "✅ PASS" : "❌ FAIL"}`);
+console.log();
+
 // Summary
 console.log("=".repeat(70));
 console.log("SUMMARY");
 console.log("=".repeat(70));
 
-const allTestsPass = allSame && usAllSame && hash1 !== hash2;
+const allTestsPass = allSame && usAllSame && hash1 !== hash2 && !!hashWithGlobalSalt && allMessySame;
 
 if (allTestsPass) {
   console.log("✅ ALL TESTS PASS — DB-2.3-V format invariance requirement met");
@@ -110,14 +142,10 @@ if (allTestsPass) {
   console.log("   ✓ Same number in different formats → identical hash");
   console.log("   ✓ libphonenumber normalization produces byte-identical E.164");
   console.log("   ✓ global_salt is used (hash changes when salt changes)");
+  console.log("   ✓ Both GLOBAL_SALT and CONTACT_HASH_SALT env vars supported");
+  console.log("   ✓ Messy format variants all normalize to identical hashes");
   process.exit(0);
 } else {
   console.log("❌ TESTS FAILED — DB-2.3-V format invariance requirement NOT met");
-  if (!allSame || !usAllSame) {
-    console.log("   ✗ Different formats produce different hashes (normalization bug)");
-  }
-  if (hash1 === hash2) {
-    console.log("   ✗ Salt is not being used (security issue)");
-  }
   process.exit(1);
 }

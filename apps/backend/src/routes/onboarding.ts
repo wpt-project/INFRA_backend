@@ -40,6 +40,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { rateLimit } from "../middleware/rate-limit.js";
 import { isValidE164 } from "../middleware/validation.js";
 import { phoneHash } from "../utils/phone-hash.js";
+import { normalizePhoneNumber } from "../utils/phone-normalize.js";
 
 const router: Router = Router();
 
@@ -208,17 +209,20 @@ router.post(
   }),
   async (req: Request, res: Response) => {
     try {
-      const { phoneNumber } = req.body as { phoneNumber?: string };
+      const { phoneNumber: rawPhoneNumber } = req.body as { phoneNumber?: string };
 
-      if (!phoneNumber || typeof phoneNumber !== "string") {
+      if (!rawPhoneNumber || typeof rawPhoneNumber !== "string") {
         res.status(400).json({ error: "phoneNumber is required" });
         return;
       }
 
-      if (!isValidE164(phoneNumber)) {
+      // Normalize phone number to E.164 format (supports different input formats)
+      const phoneNumber = normalizePhoneNumber(rawPhoneNumber);
+
+      if (!phoneNumber) {
         res.status(400).json({
           error: "INVALID_PHONE",
-          message: "Phone number must be in E.164 format (e.g. +1234567890)",
+          message: "Phone number must be valid (e.g. +1234567890, or 1234567890 with country)",
         });
         return;
       }
@@ -293,17 +297,20 @@ router.post(
   }),
   async (req: Request, res: Response) => {
     try {
-      const { phoneNumber, code } = req.body as {
+      const { phoneNumber: rawPhoneNumber, code } = req.body as {
         phoneNumber?: string;
         code?: string;
       };
 
-      if (!phoneNumber || !code) {
+      if (!rawPhoneNumber || !code) {
         res.status(400).json({ error: "phoneNumber and code are required" });
         return;
       }
 
-      if (!isValidE164(phoneNumber)) {
+      // Normalize phone number to E.164 format (supports different input formats)
+      const phoneNumber = normalizePhoneNumber(rawPhoneNumber);
+
+      if (!phoneNumber) {
         res.status(400).json({ error: "INVALID_PHONE" });
         return;
       }
@@ -416,14 +423,16 @@ router.post(
 // ──────────────────────────────────────────────────
 router.post("/check-existing-user", async (req: Request, res: Response) => {
   try {
-    const { phoneNumber } = req.body as { phoneNumber?: string };
+    const { phoneNumber: rawPhoneNumber } = req.body as { phoneNumber?: string };
 
-    if (!phoneNumber || typeof phoneNumber !== "string") {
+    if (!rawPhoneNumber || typeof rawPhoneNumber !== "string") {
       res.status(400).json({ error: "phoneNumber is required" });
       return;
     }
 
-    if (!isValidE164(phoneNumber)) {
+    const phoneNumber = normalizePhoneNumber(rawPhoneNumber);
+
+    if (!phoneNumber) {
       res.status(400).json({ error: "INVALID_PHONE" });
       return;
     }

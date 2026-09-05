@@ -21,15 +21,16 @@ import type { CountryCode } from "libphonenumber-js";
  * Returns a hex string (64 chars = SHA-256).
  *
  * @param phoneNumber - E.164-formatted phone number (e.g. "+919876543210")
- * @returns SHA-256(CONTACT_HASH_SALT + phoneNumber) as hex
- * @throws Error if CONTACT_HASH_SALT env var is not set
+ * @returns SHA-256(global_salt + phoneNumber) as hex
+ * @throws Error if neither GLOBAL_SALT nor CONTACT_HASH_SALT env var is set
  */
 export function phoneHash(phoneNumber: string): string {
-  const salt = process.env.CONTACT_HASH_SALT;
+  // Support both spec naming (GLOBAL_SALT) and implementation naming (CONTACT_HASH_SALT)
+  const salt = process.env.GLOBAL_SALT || process.env.CONTACT_HASH_SALT;
 
   if (!salt) {
     throw new Error(
-      "CONTACT_HASH_SALT environment variable is required for phone hashing. " +
+      "GLOBAL_SALT or CONTACT_HASH_SALT environment variable is required for phone hashing. " +
       "Generate one with: openssl rand -hex 32"
     );
   }
