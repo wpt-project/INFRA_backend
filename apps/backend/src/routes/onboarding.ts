@@ -33,11 +33,13 @@ import { sessions } from "../db/sessions-schema.js";
 import { users } from "../db/users-schema.js";
 import { otpVerifications } from "../db/otp-verifications-schema.js";
 import { smsOutbox } from "../db/sms-outbox-schema.js";
+import { contactHashes } from "../db/contact-hashes-schema.js";
 import { pushForceLogout } from "../ws/socket-registry.js";
 import { deliverOtpCode } from "../sms/sender.js";
 import { requireAuth } from "../middleware/auth.js";
 import { rateLimit } from "../middleware/rate-limit.js";
 import { isValidE164 } from "../middleware/validation.js";
+import { phoneHash } from "../utils/phone-hash.js";
 
 const router: Router = Router();
 
@@ -117,12 +119,22 @@ async function executeHandoffTransaction({
         userId = existingUser.id;
         routing = "chats";
       } else {
+        // New user registration — create user + contact_hashes row in same transaction (Tech Arch §14.4)
         userId = randomUUID();
-        await tx.insert(users).values({
-          id: userId,
-          phoneNumber,
-          name: "",
-        });
+        const hash = phoneHash(phoneNumber);
+
+        await Promise.all([
+          tx.insert(users).values({
+            id: userId,
+            phoneNumber,
+            name: "",
+          }),
+          tx.insert(contactHashes).values({
+            phoneHash: hash,
+            userId,
+          }),
+        ]);
+
         routing = "profile_setup";
       }
     }
