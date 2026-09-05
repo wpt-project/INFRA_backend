@@ -40,6 +40,7 @@ function RootLayoutInner() {
           <Stack.Screen name="otp-entry" options={{ headerShown: false }} />
           <Stack.Screen name="profile-setup" options={{ headerShown: false }} />
           <Stack.Screen name="settings" options={{ headerShown: false }} />
+          <Stack.Screen name="scan" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         </Stack>
         <StatusBar style={colors.statusBar} />
       </SessionProvider>

@@ -197,6 +197,17 @@ export default function SettingsScreen() {
       >
         <ProfileCard colors={colors} phone={displayPhone || ''} />
 
+        <SectionHeader title="Scan & Link" colors={colors} />
+        <View style={[ss.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <SettingRow
+            icon="qr-code-outline"
+            label="Scan QR Code"
+            value="Open web app"
+            colors={colors}
+            onPress={() => router.push('/scan')}
+          />
+        </View>
+
         <SectionHeader title="Account" colors={colors} />
         <View style={[ss.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <SettingRow icon="person-outline" label="Edit Profile" colors={colors} onPress={() => {}} />
